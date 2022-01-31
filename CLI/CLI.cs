@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using CommandLine;
 using MyYoutubeNow.Utils;
@@ -11,7 +9,19 @@ using YoutubeExplode.Videos;
 
 namespace MyYoutubeNow
 {
-    public class MyYoutubeNow
+    public class Options
+    {
+        [Value(0, Required = true, HelpText = "The url of the video/playlist. ")]
+        public string Url { get; set; }
+
+        [Option('s', Default = false, HelpText = "Split a video with chapters and convert them into mp3s.")]
+        public bool Split { get; set; }
+
+        [Option('c', Hidden = true, Default = false, HelpText = "Concatenate videos of a playlist into a single mp3.")]
+        public bool Concatenate { get; set; }
+    }
+
+    public class CLI
     {
         static async Task Main(string[] args)
         {
@@ -23,7 +33,7 @@ namespace MyYoutubeNow
                 return;
             }
 
-            await results.WithParsedAsync(MyYoutubeNow.Execute);
+            await results.WithParsedAsync(CLI.Execute);
         }
         
         public static async Task Execute(Options options)

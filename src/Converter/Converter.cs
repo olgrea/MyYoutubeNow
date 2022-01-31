@@ -12,7 +12,7 @@ using Xabe.FFmpeg;
 
 namespace MyYoutubeNow
 {
-    internal class Converter
+    public class Converter
     {
         private const string FfmpegReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
         private readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");

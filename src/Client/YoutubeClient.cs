@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
-using CommandLine;
 using YoutubeExplode;
 using YoutubeExplode.Playlists;
 using YoutubeExplode.Videos;
@@ -17,18 +16,6 @@ using MyYoutubeNow.Utils;
 
 namespace MyYoutubeNow
 {
-    public class Options
-    {
-        [Value(0, Required = true, HelpText = "The url of the video/playlist. ")]
-        public string Url { get; set; }
-        
-        [Option('s', Default = false, HelpText = "Split a video with chapters and convert them into mp3s.")]
-        public bool Split { get; set; }
-        
-        [Option('c', Hidden = true, Default = false, HelpText = "Concatenate videos of a playlist into a single mp3.")]
-        public bool Concatenate { get; set; }
-    }
-
     public class Chapter
     {
         public string Title { get; }
@@ -40,7 +27,7 @@ namespace MyYoutubeNow
         }
     }
 
-    internal class YoutubeClient
+    public class YoutubeClient
     {
         private YoutubeExplode.YoutubeClient _client;
 
@@ -114,7 +101,7 @@ namespace MyYoutubeNow
             return videoPaths;
         }
         
-        internal async Task<List<Chapter>> GetChaptersAsync(VideoId videoId)
+        public async Task<List<Chapter>> GetChaptersAsync(VideoId videoId)
         {
             try
             {
