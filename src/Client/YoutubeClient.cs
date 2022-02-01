@@ -69,7 +69,7 @@ namespace MyYoutubeNow.Client
             if (manifest == null)
                 throw new ArgumentException("no manifest found");
 
-            var stream = manifest.GetAudioOnly().WithHighestBitrate();
+            var stream = manifest.GetAudioOnlyStreams().OrderBy(s => s.Bitrate).FirstOrDefault();
             if (stream == null)
                 throw new ArgumentException("no audio stream found");
 
@@ -89,13 +89,13 @@ namespace MyYoutubeNow.Client
         public async Task<IEnumerable<string>> DownloadPlaylist(PlaylistId id, Playlist info = null)
         {
             info ??= await _client.Playlists.GetAsync(id);
-            var videos = await _client.Playlists.GetVideosAsync(id);
-            Console.WriteLine($"{videos.Count} videos found in playlist {info.Title}");
+            var videos = _client.Playlists.GetVideosAsync(id);
+            //Console.WriteLine($"{videos.Count()} videos found in playlist {info.Title}");
             var videoPaths = new List<string>();
-            for (var i = 0; i < videos.Count; i++)
+            await foreach (var video in videos)
             {
-                Console.WriteLine($"{i+1}/{videos.Count}");
-                videoPaths.Add(await DownloadVideo(videos[i].Url));
+                //Console.WriteLine($"{i+1}/{videos.Count}");
+                videoPaths.Add(await DownloadVideo(video.Url));
             }
 
             return videoPaths;
@@ -182,18 +182,18 @@ namespace MyYoutubeNow.Client
 
         private async Task<IHtmlDocument> GetHtmlWatchPage(VideoId videoId)
         {
-            var assembly = typeof(YoutubeExplode.YoutubeClient).Assembly;
-            var httpClient = typeof(VideoClient).GetField("_httpClient",
-                    BindingFlags.NonPublic | BindingFlags.Instance)
+            var videoController = typeof(VideoClient).GetField("_controller",
+                BindingFlags.NonPublic | BindingFlags.Instance)
                 .GetValue(_client.Videos);
 
-            var watchPageObj = assembly.GetType("YoutubeExplode.ReverseEngineering.Responses.WatchPage");
-            var methodInfo = watchPageObj.GetMethod("GetAsync");
-
-            var watchPage = await methodInfo.InvokeAsync(null, new object[] {httpClient, videoId.ToString()});
-
-            var root = (IHtmlDocument) watchPage.GetType().GetField("_root", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(watchPage);
+            var assembly = typeof(YoutubeExplode.YoutubeClient).Assembly;
+            var controllerType = assembly.GetType("YoutubeExplode.Videos.VideoController");
+            var methodInfo = controllerType.GetMethod("GetVideoWatchPageAsync");
+                        
+            var watchPageExtractor = await methodInfo.InvokeAsync(null, new object[] {videoController, videoId.ToString()});
+            var root = (IHtmlDocument)watchPageExtractor.GetType()
+                .GetField("_content", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(watchPageExtractor);
             return root;
         }
     }

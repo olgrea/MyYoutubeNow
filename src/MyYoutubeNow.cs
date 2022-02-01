@@ -27,7 +27,7 @@ namespace MyYoutubeNow
 
         public async Task ConvertVideo(string url, bool split = false)
         {
-            VideoId id = new VideoId(url);
+            VideoId id = VideoId.Parse(url);
             Video info = await _client.GetVideoInfoAsync(id);
             var videoPath = await _client.DownloadVideo(id, info);
             if (split)
@@ -45,7 +45,7 @@ namespace MyYoutubeNow
 
         public async Task ConvertPlaylist(string url, bool concatenate = false)
         {
-            PlaylistId id = new PlaylistId(url);
+            PlaylistId id = PlaylistId.Parse(url);
             Playlist info = await _client.GetPlaylistInfoAsync(id);
             var videoPaths = await _client.DownloadPlaylist(id, info);
 

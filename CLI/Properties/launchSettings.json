@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "CLI - chapters split": {
+      "commandName": "Project",
+      "commandLineArgs": "https://www.youtube.com/watch?v=b9fUdJdlExU -s"
+    },
+    "CLI - chapters": {
+      "commandName": "Project",
+      "commandLineArgs": "https://www.youtube.com/watch?v=b9fUdJdlExU"
+    },
+    "CLI - playlists": {
+      "commandName": "Project",
+      "commandLineArgs": "https://www.youtube.com/playlist?list=PL1qgThHfu0PZMKmedtb9IKIAXQQZsWw_s"
+    },
+    "CLI - playlist concat": {
+      "commandName": "Project",
+      "commandLineArgs": "https://www.youtube.com/playlist?list=PL1qgThHfu0PZkaiNhe-JBCLvhBDUEl8Uz -c"
+    }
+  }
+}

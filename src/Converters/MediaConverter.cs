@@ -214,7 +214,8 @@ namespace MyYoutubeNow.Converters
             conversion.AddStream(audioStream)
                 .SetOverwriteOutput(true)
                 .SetOutput(filePath)
-                .SetAudioBitrate(audioStream.Bitrate);
+                //.SetAudioBitrate(audioStream.Bitrate)
+                ;
 
             Console.WriteLine($"Converting {Path.GetFileNameWithoutExtension(filePath)} to mp3...");
             return await DoConversion(conversion);
