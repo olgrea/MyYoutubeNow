@@ -13,11 +13,11 @@ using Xabe.FFmpeg;
 
 namespace MyYoutubeNow.Converters
 {
-    public class MediaConverter
+    class FFmpegWrapper
     {
-        private const string FfmpegReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
-        private readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
-        private readonly string _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
+        private readonly string _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
+        private string _baseDirectory;
 
         private string _tempPath;
         private string TempPath
@@ -33,20 +33,21 @@ namespace MyYoutubeNow.Converters
                 return _tempPath;
             }
         }
-        
-        // TODO : change ffmpeg wrapper because of license
-        public MediaConverter()
+
+        public FFmpegWrapper(string baseDir)
         {
-            if (!File.Exists(_ffmpegPath))
+            _baseDirectory = baseDir;
+
+            if (!File.Exists(_exePath))
             {
                 Console.WriteLine("FFmpeg not found.");
-                var t = DownloadFFmpeg();
+                var t = Download();
                 t.Wait();
             }
             FFmpeg.SetExecutablesPath(_baseDirectory);
         }
 
-        ~MediaConverter()
+        ~FFmpegWrapper()
         {
             if (Directory.Exists(_tempPath))
             {
@@ -54,13 +55,50 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        private async Task DownloadFFmpeg()
+        public static string CreateSplitParameter(ulong start, ulong end)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"-ss {TimeSpan.FromMilliseconds(start).ToFFmpeg()} ");
+            if (end > 0)
+            {
+                sb.Append($"-to {TimeSpan.FromMilliseconds(end).ToFFmpeg()} ");
+            }
+
+            return sb.ToString();
+        }
+
+        public static string CreateFadeOutParameter()
+        {
+            return "-filter_complex \"aevalsrc=0:d=1.0 [a_silence]; [0:a:0] [a_silence] acrossfade=d=1.0\" ";
+        }
+
+        public static string CreateConcatToMp3Param(IEnumerable<string> pathsToMerge, string outputFilePath)
+        {
+            var sb = new StringBuilder();
+            var count = pathsToMerge.Count();
+
+            // Input parameters
+            foreach (var path in pathsToMerge)
+                sb.Append($"-i \"{path}\" ");
+
+            // filter
+            sb.Append($"-filter_complex \"");
+            for (int i = 0; i < count; i++)
+                sb.Append($"[{i}:a:0]");
+            sb.Append($"concat=n={count}:v=0:a=1[outa]\" ");
+
+            // map
+            sb.Append($"-map \"[outa]\" \"{outputFilePath}\" ");
+            return sb.ToString();
+        }
+
+        public async Task Download()
         {
             Console.WriteLine("Downloading FFmpeg...");
             using HttpClient httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "request");
 
-            var json = await httpClient.GetStringAsync(FfmpegReleaseUrl);
+            var json = await httpClient.GetStringAsync(GithubReleaseUrl);
             using JsonDocument doc = JsonDocument.Parse(json);
             var jsonDocument = doc.RootElement.Clone();
             // ReSharper disable once HeapView.BoxingAllocation
@@ -78,27 +116,40 @@ namespace MyYoutubeNow.Converters
             {
                 await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), progress);
             }
-            
+
             var extractedDir = zipPath.Replace(".zip", "");
-            if (Directory.Exists(extractedDir)) 
+            if (Directory.Exists(extractedDir))
                 Directory.Delete(extractedDir, true);
-            
+
             await using (FileStream zipStream = File.OpenRead(zipPath))
             {
                 var zip = new ZipArchive(zipStream, ZipArchiveMode.Read);
                 zip.ExtractToDirectory(_baseDirectory);
             }
-            
+
             foreach (string file in Directory.EnumerateFiles(extractedDir, "*.exe", SearchOption.AllDirectories))
             {
                 File.Copy(file, Path.Combine(_baseDirectory, Path.GetFileName(file)));
             }
 
-            if (File.Exists(_ffmpegPath))
+            if (File.Exists(_exePath))
             {
                 File.Delete(zipPath);
                 Directory.Delete(extractedDir, true);
             }
+        }
+    }
+
+    public class MediaConverter
+    {
+        FFmpegWrapper _ffmpeg;
+        string _baseDirectory;
+
+        // TODO : change ffmpeg wrapper because of license
+        public MediaConverter()
+        {
+            _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            _ffmpeg = new FFmpegWrapper(_baseDirectory);
         }
 
         public async Task<string> ConvertToMp3(IEnumerable<string> pathsToConvert, string outputDirName = "output")
@@ -135,8 +186,8 @@ namespace MyYoutubeNow.Converters
                 conversion.AddStream(audioStream)
                     .SetOverwriteOutput(true)
                     .SetOutput(partPath)
-                    .AddParameter(CreateSplitParameter(chapter.TimeRangeStart, end))
-                    .AddParameter(CreateFadeOutParameter())
+                    .AddParameter(FFmpegWrapper.CreateSplitParameter(chapter.TimeRangeStart, end))
+                    .AddParameter(FFmpegWrapper.CreateFadeOutParameter())
                     ;
 
                 var b = conversion.Build();
@@ -146,23 +197,6 @@ namespace MyYoutubeNow.Converters
 
             Directory.Delete(tempDir, true);
             return outputDirName;
-        }
-
-        private static string CreateSplitParameter(ulong start, ulong end)
-        {
-            var sb = new StringBuilder();
-            sb.Append($"-ss {TimeSpan.FromMilliseconds(start).ToFFmpeg()} ");
-            if (end > 0)
-            {
-                sb.Append($"-to {TimeSpan.FromMilliseconds(end).ToFFmpeg()} ");
-            }
-            
-            return sb.ToString();
-        }
-
-        private static string CreateFadeOutParameter()
-        {
-            return "-filter_complex \"aevalsrc=0:d=1.0 [a_silence]; [0:a:0] [a_silence] acrossfade=d=1.0\" ";
         }
 
         public async Task<string> ConvertToMp3(string pathToConvert, string outputDirName = "output")
@@ -196,33 +230,13 @@ namespace MyYoutubeNow.Converters
             
             IConversion conversion = FFmpeg.Conversions.New();
 
-            var concatParam = CreateConcatToMp3Param(pathsToMerge, filePath);
+            var concatParam = FFmpegWrapper.CreateConcatToMp3Param(pathsToMerge, filePath);
             conversion.AddParameter(concatParam)
                 .SetOverwriteOutput(true)
                 .SetOutput(filePath);
             
             Console.WriteLine($"Concatenating {pathsToMerge.Count()} files...");
             return await DoConversion(conversion);
-        }
-        
-        private static string CreateConcatToMp3Param(IEnumerable<string> pathsToMerge, string outputFilePath)
-        {
-            var sb = new StringBuilder();
-            var count = pathsToMerge.Count();
-
-            // Input parameters
-            foreach (var path in pathsToMerge)
-                sb.Append($"-i \"{path}\" ");
-
-            // filter
-            sb.Append($"-filter_complex \"");
-            for (int i = 0; i < count; i++)
-                sb.Append($"[{i}:a:0]");
-            sb.Append($"concat=n={count}:v=0:a=1[outa]\" ");
-
-            // map
-            sb.Append($"-map \"[outa]\" \"{outputFilePath}\" ");
-            return sb.ToString();
         }
         
         private static async Task<string> DoConversion(IConversion conversion)
