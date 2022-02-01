@@ -1,11 +1,7 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
-using MyYoutubeNow.Utils;
-using YoutubeExplode.Playlists;
-using YoutubeExplode.Videos;
 
 namespace MyYoutubeNow
 {
@@ -33,50 +29,20 @@ namespace MyYoutubeNow
                 return;
             }
 
-            await results.WithParsedAsync(CLI.Execute);
+            await results.WithParsedAsync(Run);
         }
         
-        public static async Task Execute(Options options)
+        public static async Task Run(Options options)
         {
-            var client = new YoutubeClient();
-            var converter = new Converter(); 
+            var myn = new MyYoutubeNow();
             
-            if (VideoId.TryParse(options.Url) != null)
+            if (MyYoutubeNow.IsVideo(options.Url))
             {
-                VideoId id = new VideoId(options.Url);
-                Video info = await client.GetVideoInfoAsync(id);
-                var videoPath = await client.DownloadVideo(id, info);
-                if (options.Split)
-                {
-                    var chapters = await client.GetChaptersAsync(id);
-                    await converter.ConvertToMp3s(videoPath, chapters, info.Title.RemoveInvalidChars());
-                }
-                else
-                {
-                    await converter.ConvertToMp3(videoPath);
-                }
-                if (File.Exists(videoPath)) 
-                    File.Delete(videoPath);
+                await myn.ConvertVideo(options.Url, options.Split);
             }
-            else if(PlaylistId.TryParse(options.Url) != null)
+            else if(MyYoutubeNow.IsPlaylist(options.Url))
             {
-                PlaylistId id = new PlaylistId(options.Url);
-                Playlist info = await client.GetPlaylistInfoAsync(id);
-                var videoPaths = await client.DownloadPlaylist(id, info);
-
-                if (options.Concatenate)
-                {
-                    await converter.ConcatenateMp3s(videoPaths);
-                }
-                else
-                {
-                    await converter.ConvertToMp3(videoPaths, $"{info.Title.RemoveInvalidChars()}");
-                }
-                foreach (var path in videoPaths)
-                {
-                    if (File.Exists(path)) 
-                        File.Delete(path);
-                }
+                await myn.ConvertPlaylist(options.Url, options.Concatenate);
             }
         }
     }

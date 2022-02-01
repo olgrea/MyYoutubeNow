@@ -14,7 +14,7 @@ using YoutubeExplode.Videos.Streams;
 using AngleSharp.Html.Dom;
 using MyYoutubeNow.Utils;
 
-namespace MyYoutubeNow
+namespace MyYoutubeNow.Client
 {
     public class Chapter
     {

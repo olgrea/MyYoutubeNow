@@ -7,12 +7,13 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using MyYoutubeNow.Client;
 using MyYoutubeNow.Utils;
 using Xabe.FFmpeg;
 
-namespace MyYoutubeNow
+namespace MyYoutubeNow.Converters
 {
-    public class Converter
+    public class MediaConverter
     {
         private const string FfmpegReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
         private readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
@@ -34,7 +35,7 @@ namespace MyYoutubeNow
         }
         
         // TODO : change ffmpeg wrapper because of license
-        public Converter()
+        public MediaConverter()
         {
             if (!File.Exists(_ffmpegPath))
             {
@@ -45,7 +46,7 @@ namespace MyYoutubeNow
             FFmpeg.SetExecutablesPath(_baseDirectory);
         }
 
-        ~Converter()
+        ~MediaConverter()
         {
             if (Directory.Exists(_tempPath))
             {
