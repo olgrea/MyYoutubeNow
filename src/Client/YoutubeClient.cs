@@ -19,11 +19,11 @@ namespace MyYoutubeNow.Client
     public class Chapter
     {
         public string Title { get; }
-        public ulong TimeRangeStart { get; }
+        public ulong TimeRangeStartMs { get; }
         public Chapter(string title, ulong timeRangeStart)
         {
             Title = title;
-            TimeRangeStart = timeRangeStart;
+            TimeRangeStartMs = timeRangeStart;
         }
     }
 

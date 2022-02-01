@@ -172,13 +172,13 @@ namespace MyYoutubeNow.Converters
             Directory.CreateDirectory(outputDir);
             
             var chapterList = chapters.ToList();
-            for (int i = 0; i < chapterList.Count - 1; i++)
+            for (int i = 0; i < chapterList.Count; i++)
             {
                 var chapter = chapterList[i];
                 var partPath = Path.Combine(_baseDirectory, outputDirName, chapter.Title.RemoveInvalidChars() + ".mp3");
                 
                 IConversion conversion = FFmpeg.Conversions.New();
-                var end = i + 1 != chapterList.Count - 1 ? chapterList[i + 1].TimeRangeStart : 0;
+                var end = i + 1 != chapterList.Count ? chapterList[i + 1].TimeRangeStartMs : 0;
                 
                 IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(videoMixPath);
                 var audioStream = mediaInfo.AudioStreams.FirstOrDefault()?.SetCodec(AudioCodec.mp3);
@@ -186,7 +186,7 @@ namespace MyYoutubeNow.Converters
                 conversion.AddStream(audioStream)
                     .SetOverwriteOutput(true)
                     .SetOutput(partPath)
-                    .AddParameter(FFmpegWrapper.CreateSplitParameter(chapter.TimeRangeStart, end))
+                    .AddParameter(FFmpegWrapper.CreateSplitParameter(chapter.TimeRangeStartMs, end))
                     .AddParameter(FFmpegWrapper.CreateFadeOutParameter())
                     ;
 
@@ -213,8 +213,8 @@ namespace MyYoutubeNow.Converters
             IConversion conversion = FFmpeg.Conversions.New();
             conversion.AddStream(audioStream)
                 .SetOverwriteOutput(true)
+                .AddParameter("-q:a 2")
                 .SetOutput(filePath)
-                //.SetAudioBitrate(audioStream.Bitrate)
                 ;
 
             Console.WriteLine($"Converting {Path.GetFileNameWithoutExtension(filePath)} to mp3...");
@@ -234,7 +234,9 @@ namespace MyYoutubeNow.Converters
             var concatParam = FFmpegWrapper.CreateConcatToMp3Param(pathsToMerge, filePath);
             conversion.AddParameter(concatParam)
                 .SetOverwriteOutput(true)
-                .SetOutput(filePath);
+                .AddParameter("-q:a 2")
+                .SetOutput(filePath)
+                ;
             
             Console.WriteLine($"Concatenating {pathsToMerge.Count()} files...");
             return await DoConversion(conversion);

@@ -10,7 +10,7 @@
     },
     "CLI - playlists": {
       "commandName": "Project",
-      "commandLineArgs": "https://www.youtube.com/playlist?list=PL1qgThHfu0PZMKmedtb9IKIAXQQZsWw_s"
+      "commandLineArgs": "https://www.youtube.com/playlist?list=PL1qgThHfu0PZkaiNhe-JBCLvhBDUEl8Uz"
     },
     "CLI - playlist concat": {
       "commandName": "Project",
