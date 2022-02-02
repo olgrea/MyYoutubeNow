@@ -51,7 +51,7 @@ namespace MyYoutubeNow
 
             if (concatenate)
             {
-                await _converter.ConcatenateMp3s(videoPaths);
+                await _converter.ConcatenateMp3s(videoPaths, $"{info.Title.RemoveInvalidChars()}");
             }
             else
             {

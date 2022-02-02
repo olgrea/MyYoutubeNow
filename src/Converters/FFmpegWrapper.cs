@@ -8,7 +8,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MyYoutubeNow.Utils;
-using Xabe.FFmpeg;
+using FFMpegCore;
+using Instances;
 
 namespace MyYoutubeNow.Converters
 {
@@ -37,13 +38,14 @@ namespace MyYoutubeNow.Converters
         {
             _baseDirectory = baseDir;
 
+            //TODO : check if already installed on system
             if (!File.Exists(_exePath))
             {
                 Console.WriteLine("FFmpeg not found.");
                 var t = Download();
                 t.Wait();
             }
-            FFmpeg.SetExecutablesPath(_baseDirectory);
+            GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _baseDirectory, TemporaryFilesFolder = TempPath });
         }
 
         ~FFmpegWrapper()
@@ -54,53 +56,120 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public async Task<string> ConvertToMp3(string videoPath, string outputPath)
+        public async Task<bool> ConvertToMp3(string videoPath, string outputPath)
         {
-            IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(videoPath);
-            var audioStream = mediaInfo.AudioStreams.FirstOrDefault()?.SetCodec(AudioCodec.mp3);
-
-            IConversion conversion = FFmpeg.Conversions.New();
-            conversion.AddStream(audioStream)
-                .SetOverwriteOutput(true)
-                .AddParameter(MakeQualityParam())
-                .SetOutput(outputPath)
-                ;
+            var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
+            var audioStream = mediaInfo.PrimaryAudioStream;
 
             Console.WriteLine($"Converting {Path.GetFileNameWithoutExtension(outputPath)} to mp3...");
-            return await DoConversion(conversion);
+
+            var inlineProgress = new InlineProgress();
+            try
+            {
+                return await FFMpegArguments
+                    .FromFileInput(videoPath)
+                    .OutputToFile(outputPath, true, op =>
+                        op
+                        .SelectStream(audioStream.Index)
+                        .WithAudioCodec("mp3")
+                        .DisableChannel(FFMpegCore.Enums.Channel.Video)
+                        .WithCustomArgument(MakeQualityParam())
+                        .OverwriteExisting()
+                    )
+                    .NotifyOnProgress(progress =>
+                    {
+                        inlineProgress.Report(progress.TotalMilliseconds / audioStream.Duration.TotalMilliseconds);
+                    })
+                    .ProcessAsynchronously();
+
+            }
+            finally
+            {
+                inlineProgress.Dispose();
+                var outputFileInfo = new FileInfo(outputPath);
+                if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
+                    Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
+            }
         }
 
-        public async Task VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title)
+        public async Task<bool> VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title)
         {
-            IConversion conversion = FFmpeg.Conversions.New();
-            IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(videoMixPath);
-            var audioStream = mediaInfo.AudioStreams.FirstOrDefault()?.SetCodec(AudioCodec.mp3);
+            var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
+            var audioStream = mediaInfo.PrimaryAudioStream;
 
-            conversion.AddStream(audioStream)
-                .SetOverwriteOutput(true)
-                .SetOutput(outputPath)
-                .AddParameter(FFmpegWrapper.MakeSplitParam(start, end))
-                .AddParameter(FFmpegWrapper.MakeFadeOutParam())
-                ;
-
-            var b = conversion.Build();
             Console.WriteLine($"Converting chapter {title} to mp3...");
-            await DoConversion(conversion);
+
+            var inlineProgress = new InlineProgress();
+            try
+            {
+                return await FFMpegArguments
+                    .FromFileInput(videoMixPath)
+                    .OutputToFile(outputPath, true, op =>
+                        op
+                        .SelectStream(audioStream.Index)
+                        .WithAudioCodec("mp3")
+                        .DisableChannel(FFMpegCore.Enums.Channel.Video)
+                        .WithCustomArgument(MakeQualityParam())
+                        .WithCustomArgument(MakeSplitParam(start, end))
+                        .WithCustomArgument(MakeFadeOutParam())
+                        .OverwriteExisting()
+                    )
+                    .NotifyOnProgress(progress =>
+                    {
+                        inlineProgress.Report(progress.TotalMilliseconds / (double)(end-start));
+                    })
+                    .ProcessAsynchronously();
+            }
+            finally
+            {
+                inlineProgress.Dispose();
+                var outputFileInfo = new FileInfo(outputPath);
+                if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
+                    Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
+            }
+
         }
 
-        public async Task<string> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath)
+        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath)
         {
-            IConversion conversion = FFmpeg.Conversions.New();
-
-            var concatParam = FFmpegWrapper.MakeConcatParam(videoPaths, outputPath);
-            conversion.AddParameter(concatParam)
-                .SetOverwriteOutput(true)
-                .AddParameter(MakeQualityParam())
-                .SetOutput(outputPath)
-                ;
-
             Console.WriteLine($"Concatenating {videoPaths.Count()} files...");
-            return await DoConversion(conversion);
+
+            var inlineProgress = new InlineProgress();
+            try
+            {
+                var paths = videoPaths.ToList();
+                
+                var mediaInfo = await FFProbe.AnalyseAsync(paths[0]);
+                var totalDuration = mediaInfo.Duration.TotalMilliseconds;
+                var ffmpegArgs = FFMpegArguments.FromFileInput(paths[0]);
+
+                for (int i = 1; i < paths.Count; i++)
+                {
+                    mediaInfo = await FFProbe.AnalyseAsync(paths[i]);
+                    totalDuration += mediaInfo.Duration.TotalMilliseconds;
+                    ffmpegArgs.AddFileInput(paths[i]);
+                }
+
+                return await ffmpegArgs
+                    .OutputToFile(outputPath, true, op =>
+                        op
+                        .WithAudioCodec("mp3")
+                        .WithCustomArgument(MakeConcatParam(paths.Count, outputPath))
+                        .OverwriteExisting()
+                    )
+                    .NotifyOnProgress(progress =>
+                    {
+                        inlineProgress.Report(progress.TotalMilliseconds / totalDuration);
+                    })
+                    .ProcessAsynchronously();
+            }
+            finally 
+            {
+                inlineProgress.Dispose();
+                var outputFileInfo = new FileInfo(outputPath);
+                if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
+                    Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
+            }
         }
 
         private static string MakeQualityParam()
@@ -108,35 +177,25 @@ namespace MyYoutubeNow.Converters
             return "-q:a 2";
         }
 
-        private static async Task<string> DoConversion(IConversion conversion)
-        {
-            var cmd = conversion.Build();
-            var nbInputs = cmd.Split("-i").Count() - 1;
-
-            using var convProgress = new InlineProgress();
-            conversion.OnProgress += (sender, args) =>
-            {
-                convProgress.Report(args.Duration.TotalMilliseconds / (args.TotalLength.TotalMilliseconds * nbInputs));
-
-            };
-            await conversion.Start();
-
-            var outputFileInfo = new FileInfo(conversion.OutputFilePath);
-            if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
-                Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
-            return conversion.OutputFilePath;
-        }
-
         private static string MakeSplitParam(ulong start, ulong end)
         {
             var sb = new StringBuilder();
-            sb.Append($"-ss {TimeSpan.FromMilliseconds(start).ToFFmpeg()} ");
+            sb.Append($"-ss {ToFFmpeg(TimeSpan.FromMilliseconds(start))} ");
             if (end > 0)
             {
-                sb.Append($"-to {TimeSpan.FromMilliseconds(end).ToFFmpeg()} ");
+                sb.Append($"-to {ToFFmpeg(TimeSpan.FromMilliseconds(end))} ");
             }
 
             return sb.ToString();
+        }
+
+        static string ToFFmpeg(TimeSpan ts)
+        {
+            int milliseconds = ts.Milliseconds;
+            int seconds = ts.Seconds;
+            int minutes = ts.Minutes;
+            int num = (int)ts.TotalHours;
+            return $"{num:D}:{minutes:D2}:{seconds:D2}.{milliseconds:D3}";
         }
 
         private static string MakeFadeOutParam()
@@ -144,20 +203,19 @@ namespace MyYoutubeNow.Converters
             return "-filter_complex \"aevalsrc=0:d=1.0 [a_silence]; [0:a:0] [a_silence] acrossfade=d=1.0\" ";
         }
 
-        private static string MakeConcatParam(IEnumerable<string> pathsToMerge, string outputFilePath)
+        private static string MakeConcatParam(int nbToConcat, string outputFilePath)
         {
             var sb = new StringBuilder();
-            var count = pathsToMerge.Count();
 
-            // Input parameters
-            foreach (var path in pathsToMerge)
-                sb.Append($"-i \"{path}\" ");
+            //// Input parameters
+            //foreach (var path in pathsToMerge)
+            //    sb.Append($"-i \"{path}\" ");
 
             // filter
             sb.Append($"-filter_complex \"");
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < nbToConcat; i++)
                 sb.Append($"[{i}:a:0]");
-            sb.Append($"concat=n={count}:v=0:a=1[outa]\" ");
+            sb.Append($"concat=n={nbToConcat}:v=0:a=1[outa]\" ");
 
             // map
             sb.Append($"-map \"[outa]\" \"{outputFilePath}\" ");

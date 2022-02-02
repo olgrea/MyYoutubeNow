@@ -13,7 +13,7 @@ namespace MyYoutubeNow.Converters
         FFmpegWrapper _ffmpeg;
         string _baseDirectory;
 
-        // TODO : change ffmpeg wrapper because of license
+        // TODO : add log handler instead of console
         public MediaConverter()
         {
             _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
@@ -56,7 +56,7 @@ namespace MyYoutubeNow.Converters
             return outputDirName;
         }
 
-        public async Task<string> ConvertToMp3(string pathToConvert, string outputDirName = "output")
+        public async Task<bool> ConvertToMp3(string pathToConvert, string outputDirName = "output")
         {
             var outputDir = Path.Combine(_baseDirectory, outputDirName);
             Directory.CreateDirectory(outputDir);
@@ -66,12 +66,12 @@ namespace MyYoutubeNow.Converters
             return await _ffmpeg.ConvertToMp3(pathToConvert, filePath);
         }
 
-        public async Task<string> ConcatenateMp3s(IEnumerable<string> pathsToMerge, string outputDirName = "output")
+        public async Task<bool> ConcatenateMp3s(IEnumerable<string> pathsToMerge, string outputFileName, string outputDirName = "output")
         {
             var outputDir = Path.Combine(_baseDirectory, outputDirName);
             Directory.CreateDirectory(outputDir);
 
-            var filename = $"{Path.GetFileNameWithoutExtension(outputDirName)}.mp3";
+            var filename = $"{outputFileName}.mp3";
             var filePath = Path.Combine(outputDir, filename);
 
             return await _ffmpeg.VideosToSingleMp3(pathsToMerge, filePath);
