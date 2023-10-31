@@ -2,12 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FFMpegCore" Version="4.7.0" />
-    <PackageReference Include="YoutubeExplode" Version="6.0.7" />
+    <PackageReference Include="FFMpegCore" Version="5.1.0" />
+    <PackageReference Include="YoutubeExplode" Version="6.3.6" />
   </ItemGroup>
 
 </Project>
