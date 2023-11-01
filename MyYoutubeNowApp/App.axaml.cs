@@ -1,8 +1,9 @@
-﻿using Avalonia;
+﻿using System;
+using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
-
+using Microsoft.Extensions.DependencyInjection;
 using MyYoutubeNowApp.ViewModels;
 using MyYoutubeNowApp.Views;
 
@@ -10,6 +11,21 @@ namespace MyYoutubeNowApp;
 
 public partial class App : Application
 {
+    public App()
+    {
+        Services = ConfigureServices();
+    }
+
+    public IServiceProvider Services { get; }
+
+    private static IServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<MyYoutubeNow.MyYoutubeNowService, MyYoutubeNow.MyYoutubeNowService>();
+        services.AddTransient<MainViewModel>();
+        return services.BuildServiceProvider();
+    }
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -25,14 +41,7 @@ public partial class App : Application
         {
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel()
-            };
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
-        {
-            singleViewPlatform.MainView = new MainView
-            {
-                DataContext = new MainViewModel()
+                DataContext = Services.GetService<MainViewModel>()
             };
         }
 
