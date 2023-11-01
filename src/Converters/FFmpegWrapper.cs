@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using MyYoutubeNow.Utils;
 using FFMpegCore;
 using Instances;
+using NLog;
 
 namespace MyYoutubeNow.Converters
 {
@@ -18,6 +19,7 @@ namespace MyYoutubeNow.Converters
         private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
         private readonly string _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
         private string _baseDirectory;
+        ILogger _logger;
 
         private string _tempPath;
         private string TempPath
@@ -34,8 +36,9 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public FFmpegWrapper(string baseDir)
+        public FFmpegWrapper(string baseDir, ILogger logger)
         {
+            _logger = logger;
             _baseDirectory = baseDir;
             GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _baseDirectory, TemporaryFilesFolder = TempPath });
         }
@@ -52,14 +55,14 @@ namespace MyYoutubeNow.Converters
         {
             if(!FFmpegFound)
             {
-                Console.WriteLine("FFmpeg not found.");
+                _logger.Debug("FFmpeg not found.");
                 await Download();
             }
 
             var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
-            Console.WriteLine($"Converting {Path.GetFileNameWithoutExtension(outputPath)} to mp3...");
+            _logger.Debug($"Converting {Path.GetFileNameWithoutExtension(outputPath)} to mp3...");
 
             var inlineProgress = new InlineProgress();
             try
@@ -94,14 +97,14 @@ namespace MyYoutubeNow.Converters
         {
             if (!FFmpegFound)
             {
-                Console.WriteLine("FFmpeg not found.");
+                _logger.Debug("FFmpeg not found.");
                 await Download();
             }
 
             var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
-            Console.WriteLine($"Converting chapter {title} to mp3...");
+            _logger.Debug($"Converting chapter {title} to mp3...");
 
             var inlineProgress = new InlineProgress();
             try
@@ -138,11 +141,11 @@ namespace MyYoutubeNow.Converters
         {
             if (!FFmpegFound)
             {
-                Console.WriteLine("FFmpeg not found.");
+                _logger.Debug("FFmpeg not found.");
                 await Download();
             }
 
-            Console.WriteLine($"Concatenating {videoPaths.Count()} files...");
+            _logger.Debug($"Concatenating {videoPaths.Count()} files...");
 
             var inlineProgress = new InlineProgress();
             try
@@ -236,7 +239,7 @@ namespace MyYoutubeNow.Converters
 
         public async Task Download()
         {
-            Console.WriteLine("Downloading FFmpeg...");
+            _logger.Debug("Downloading FFmpeg...");
             using HttpClient httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "request");
 
