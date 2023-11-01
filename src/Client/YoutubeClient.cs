@@ -82,7 +82,7 @@ namespace MyYoutubeNow.Client
             var videoPath = Path.Combine(tempDir, $"{videoInfo.Title.RemoveInvalidChars()}.{stream.Container.Name}");
             
             await _client.Videos.Streams.DownloadAsync(stream, videoPath, ProgressReport);
-
+            _logger.Info("Completed");
             return videoPath;
         }
 

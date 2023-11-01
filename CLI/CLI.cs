@@ -60,15 +60,8 @@ namespace MyYoutubeNow
     {
         public void Report(double progress)
         {
-            //if (progress >= 1)
-            //    progress /= 100d;
-
             Console.SetCursorPosition(0, Console.CursorTop);
             Console.Write($"{progress:P1}      ");
-            if (progress >= 1.0)
-            {
-                Console.WriteLine("Completed");
-            }
         }
     }
 }

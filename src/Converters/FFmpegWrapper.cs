@@ -68,7 +68,7 @@ namespace MyYoutubeNow.Converters
 
             try
             {
-                return await FFMpegArguments
+                var task =  await FFMpegArguments
                     .FromFileInput(videoPath)
                     .OutputToFile(outputPath, true, op =>
                         op
@@ -84,6 +84,8 @@ namespace MyYoutubeNow.Converters
                     }, audioStream.Duration)
                     .ProcessAsynchronously();
 
+                _logger.Info("Completed");
+                return task;
             }
             finally
             {
@@ -108,7 +110,7 @@ namespace MyYoutubeNow.Converters
 
             try
             {
-                return await FFMpegArguments
+                var task = await FFMpegArguments
                     .FromFileInput(videoMixPath)
                     .OutputToFile(outputPath, true, op =>
                         op
@@ -125,6 +127,9 @@ namespace MyYoutubeNow.Converters
                         ProgressReport?.Report(progress.TotalMilliseconds / (double)(end-start));
                     })
                     .ProcessAsynchronously();
+                
+                _logger.Info("Completed");
+                return task;
             }
             finally
             {
@@ -160,7 +165,7 @@ namespace MyYoutubeNow.Converters
                     ffmpegArgs.AddFileInput(paths[i]);
                 }
 
-                return await ffmpegArgs
+                var task = await ffmpegArgs
                     .OutputToFile(outputPath, true, op =>
                         op
                         .WithAudioCodec("mp3")
@@ -172,6 +177,9 @@ namespace MyYoutubeNow.Converters
                         ProgressReport?.Report(progress.TotalMilliseconds / totalDuration);
                     })
                     .ProcessAsynchronously();
+
+                _logger.Info("Completed");
+                return task;
             }
             finally 
             {
@@ -254,6 +262,7 @@ namespace MyYoutubeNow.Converters
             var zipPath = Path.Combine(_baseDirectory, zipFileName);
 
             await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), ProgressReport);
+            _logger.Info("Completed");
 
             var extractedDir = zipPath.Replace(".zip", "");
             if (Directory.Exists(extractedDir))
