@@ -7,6 +7,11 @@ using MyYoutubeNow.Utils;
 
 using YoutubeExplode.Videos;
 using YoutubeExplode.Playlists;
+using NLog;
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using NLog.Layouts;
+using NLog.Config;
 
 namespace MyYoutubeNow
 {
@@ -14,12 +19,21 @@ namespace MyYoutubeNow
     {
         YoutubeClient _client;
         MediaConverter _converter;
+        IServiceProvider _services;
+        LoggingConfiguration _loggingConfig;
 
-        public MyYoutubeNowService()
+        public MyYoutubeNowService(IProgressReport progressReport = null)
         {
-            _client = new YoutubeClient();
-            _converter = new MediaConverter();
+            _loggingConfig = ConfigureLogger();
+            _services = ConfigureServices();
+
+            _client = _services.GetService<YoutubeClient>();
+            _converter = _services.GetService<MediaConverter>();
+
+            _client.ProgressReport = _converter.ProgressReport = progressReport;
         }
+
+        public LoggingConfiguration LoggingConfig => _loggingConfig;
 
         static public bool IsVideo(string url) => VideoId.TryParse(url) != null;
         static public bool IsPlaylist(string url) => PlaylistId.TryParse(url) != null;
@@ -73,6 +87,29 @@ namespace MyYoutubeNow
                 if (File.Exists(path))
                     File.Delete(path);
             }
+        }
+
+        private LoggingConfiguration ConfigureLogger()
+        {
+            var config = new NLog.Config.LoggingConfiguration();
+            var logdebugger = new NLog.Targets.DebuggerTarget("logdebugger");
+            logdebugger.Layout = Layout.FromString("${message:withexception=true}");
+
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, logdebugger);
+            config.Apply();
+            return config;
+        }
+
+        private IServiceProvider ConfigureServices()
+        {
+            var services = new ServiceCollection();
+
+            services.AddSingleton(typeof(ILogger), LogManager.GetLogger($"logdebugger"));
+            services.AddSingleton<YoutubeExplode.YoutubeClient, YoutubeExplode.YoutubeClient>();
+            services.AddSingleton<YoutubeClient, YoutubeClient>();
+            services.AddSingleton<MediaConverter, MediaConverter>();
+
+            return services.BuildServiceProvider();
         }
     }
 }

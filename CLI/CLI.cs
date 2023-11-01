@@ -2,6 +2,9 @@
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
+using MyYoutubeNow.Utils;
+using NLog;
+using NLog.Layouts;
 
 namespace MyYoutubeNow
 {
@@ -34,8 +37,14 @@ namespace MyYoutubeNow
         
         public static async Task Run(Options options)
         {
-            var myn = new MyYoutubeNowService();
-            
+            var myn = new MyYoutubeNowService(new InlineProgress());
+
+            var target = new NLog.Targets.ConsoleTarget("logconsole");
+            target.Layout = Layout.FromString("${message:withexception=true}");
+            myn.LoggingConfig.AddTarget(target);
+            myn.LoggingConfig.AddRule(LogLevel.Info, LogLevel.Fatal, target);
+            myn.LoggingConfig.Apply();
+
             if (MyYoutubeNowService.IsVideo(options.Url))
             {
                 await myn.ConvertVideo(options.Url, options.Split);
@@ -44,6 +53,15 @@ namespace MyYoutubeNow
             {
                 await myn.ConvertPlaylist(options.Url, options.Concatenate);
             }
+        }
+    }
+
+    internal class InlineProgress : IProgressReport
+    {
+        public void Report(double progress)
+        {
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write($"{progress:P1}      ");
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MyYoutubeNow.Client;
 using MyYoutubeNow.Utils;
+using NLog;
 
 namespace MyYoutubeNow.Converters
 {
@@ -12,12 +13,20 @@ namespace MyYoutubeNow.Converters
     {
         FFmpegWrapper _ffmpeg;
         string _baseDirectory;
+        ILogger _logger;
 
         // TODO : add log handler instead of console
-        public MediaConverter()
+        public MediaConverter(ILogger logger)
         {
+            _logger = logger;
             _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            _ffmpeg = new FFmpegWrapper(_baseDirectory);
+            _ffmpeg = new FFmpegWrapper(_baseDirectory, logger);
+        }
+        
+        public IProgressReport ProgressReport 
+        {
+            get => _ffmpeg.ProgressReport; 
+            set => _ffmpeg.ProgressReport = value; 
         }
 
         public async Task<string> ConvertToMp3(IEnumerable<string> pathsToConvert, string outputDirName = "output")
@@ -25,7 +34,7 @@ namespace MyYoutubeNow.Converters
             var list = pathsToConvert.ToList();
             for (var i = 0; i < list.Count; i++)
             {
-                Console.WriteLine($"Conversion {i+1}/{list.Count}");
+                _logger.Info($"Conversion {i+1}/{list.Count}");
                 await ConvertToMp3(list[i], outputDirName);
             }
 
