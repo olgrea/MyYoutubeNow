@@ -12,5 +12,10 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+	<StackPanel Orientation="Horizontal" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" >
+		<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
+		<Button Content="Get" Command="{Binding GetUrlInfoCommand}"/>
+	</StackPanel>
+	
 </UserControl>
