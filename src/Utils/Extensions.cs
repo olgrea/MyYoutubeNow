@@ -3,11 +3,17 @@ using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using NLog.Config;
 
 namespace MyYoutubeNow.Utils
 {
     public static class Extensions
     {
+        public static void Apply(this LoggingConfiguration config)
+        {
+            NLog.LogManager.Configuration = config;
+        }
+
         public static async Task<object> InvokeAsync(this MethodInfo @this, object obj, params object[] parameters)
         {
             var task = (Task)@this.Invoke(obj, parameters);

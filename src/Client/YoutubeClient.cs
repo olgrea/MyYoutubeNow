@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
-using YoutubeExplode;
 using YoutubeExplode.Playlists;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
@@ -48,9 +47,11 @@ namespace MyYoutubeNow.Client
         
         public YoutubeClient(YoutubeExplode.YoutubeClient client, ILogger logger)
         {
-            _logger = logger;
             _client = client;
+            _logger = logger;
         }
+
+        public IProgressReport ProgressReport { get; set; }
 
         public async Task<Video> GetVideoInfoAsync(VideoId id)
         {
@@ -66,7 +67,7 @@ namespace MyYoutubeNow.Client
         {
             videoInfo ??= await _client.Videos.GetAsync(id);
             StreamManifest manifest = await _client.Videos.Streams.GetManifestAsync(id);
-            _logger.Debug($"Downloading video {videoInfo.Title}...");
+            _logger.Info($"Downloading video {videoInfo.Title}...");
             
             if (manifest == null)
                 throw new ArgumentException("no manifest found");
@@ -80,10 +81,7 @@ namespace MyYoutubeNow.Client
             
             var videoPath = Path.Combine(tempDir, $"{videoInfo.Title.RemoveInvalidChars()}.{stream.Container.Name}");
             
-            using (var progress = new  InlineProgress())
-            {
-                await _client.Videos.Streams.DownloadAsync(stream, videoPath, progress);
-            }
+            await _client.Videos.Streams.DownloadAsync(stream, videoPath, ProgressReport);
 
             return videoPath;
         }
@@ -92,11 +90,11 @@ namespace MyYoutubeNow.Client
         {
             info ??= await _client.Playlists.GetAsync(id);
             var videos = _client.Playlists.GetVideosAsync(id);
-            //_logger.Debug($"{videos.Count()} videos found in playlist {info.Title}");
+            //_logger.Info($"{videos.Count()} videos found in playlist {info.Title}");
             var videoPaths = new List<string>();
             await foreach (var video in videos)
             {
-                //_logger.Debug($"{i+1}/{videos.Count}");
+                //_logger.Info($"{i+1}/{videos.Count}");
                 videoPaths.Add(await DownloadVideo(video.Url));
             }
 
@@ -118,8 +116,8 @@ namespace MyYoutubeNow.Client
             }
             catch (Exception ex)
             {
-                _logger.Debug("Getting chapters failed");
-                _logger.Debug(ex.Message);                
+                _logger.Info("Getting chapters failed");
+                _logger.Info(ex.Message);                
                 throw;
             }
             

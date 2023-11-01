@@ -22,13 +22,19 @@ namespace MyYoutubeNow.Converters
             _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             _ffmpeg = new FFmpegWrapper(_baseDirectory, logger);
         }
+        
+        public IProgressReport ProgressReport 
+        {
+            get => _ffmpeg.ProgressReport; 
+            set => _ffmpeg.ProgressReport = value; 
+        }
 
         public async Task<string> ConvertToMp3(IEnumerable<string> pathsToConvert, string outputDirName = "output")
         {
             var list = pathsToConvert.ToList();
             for (var i = 0; i < list.Count; i++)
             {
-                _logger.Debug($"Conversion {i+1}/{list.Count}");
+                _logger.Info($"Conversion {i+1}/{list.Count}");
                 await ConvertToMp3(list[i], outputDirName);
             }
 
