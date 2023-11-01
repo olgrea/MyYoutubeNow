@@ -37,14 +37,6 @@ namespace MyYoutubeNow.Converters
         public FFmpegWrapper(string baseDir)
         {
             _baseDirectory = baseDir;
-
-            //TODO : check if already installed on system
-            if (!File.Exists(_exePath))
-            {
-                Console.WriteLine("FFmpeg not found.");
-                var t = Download();
-                t.Wait();
-            }
             GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _baseDirectory, TemporaryFilesFolder = TempPath });
         }
 
@@ -58,6 +50,12 @@ namespace MyYoutubeNow.Converters
 
         public async Task<bool> ConvertToMp3(string videoPath, string outputPath)
         {
+            if(!FFmpegFound)
+            {
+                Console.WriteLine("FFmpeg not found.");
+                await Download();
+            }
+
             var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
@@ -94,6 +92,12 @@ namespace MyYoutubeNow.Converters
 
         public async Task<bool> VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title)
         {
+            if (!FFmpegFound)
+            {
+                Console.WriteLine("FFmpeg not found.");
+                await Download();
+            }
+
             var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
@@ -132,6 +136,12 @@ namespace MyYoutubeNow.Converters
 
         public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath)
         {
+            if (!FFmpegFound)
+            {
+                Console.WriteLine("FFmpeg not found.");
+                await Download();
+            }
+
             Console.WriteLine($"Concatenating {videoPaths.Count()} files...");
 
             var inlineProgress = new InlineProgress();
@@ -171,6 +181,8 @@ namespace MyYoutubeNow.Converters
                     Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
             }
         }
+
+        private bool FFmpegFound => File.Exists(_exePath);
 
         private static string MakeQualityParam()
         {
