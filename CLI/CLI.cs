@@ -34,13 +34,13 @@ namespace MyYoutubeNow
         
         public static async Task Run(Options options)
         {
-            var myn = new MyYoutubeNow();
+            var myn = new MyYoutubeNowService();
             
-            if (MyYoutubeNow.IsVideo(options.Url))
+            if (MyYoutubeNowService.IsVideo(options.Url))
             {
                 await myn.ConvertVideo(options.Url, options.Split);
             }
-            else if(MyYoutubeNow.IsPlaylist(options.Url))
+            else if(MyYoutubeNowService.IsPlaylist(options.Url))
             {
                 await myn.ConvertPlaylist(options.Url, options.Concatenate);
             }

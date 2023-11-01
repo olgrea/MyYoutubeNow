@@ -10,13 +10,12 @@ using YoutubeExplode.Playlists;
 
 namespace MyYoutubeNow
 {
-    
-    public class MyYoutubeNow
+    public class MyYoutubeNowService
     {
         YoutubeClient _client;
         MediaConverter _converter;
 
-        public MyYoutubeNow()
+        public MyYoutubeNowService()
         {
             _client = new YoutubeClient();
             _converter = new MediaConverter();
@@ -24,6 +23,18 @@ namespace MyYoutubeNow
 
         static public bool IsVideo(string url) => VideoId.TryParse(url) != null;
         static public bool IsPlaylist(string url) => PlaylistId.TryParse(url) != null;
+
+        public async Task<Video> GetVideoInfoAsync(string url)
+        {
+            VideoId id = VideoId.Parse(url);
+            return await _client.GetVideoInfoAsync(id);
+        }
+
+        public async Task<Playlist> GetPlaylistInfoAsync(string url)
+        {
+            PlaylistId id = PlaylistId.Parse(url);
+            return await _client.GetPlaylistInfoAsync(id);
+        }
 
         public async Task ConvertVideo(string url, bool split = false)
         {
