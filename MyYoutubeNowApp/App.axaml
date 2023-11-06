@@ -6,5 +6,6 @@
 
     <Application.Styles>
         <FluentTheme />
+		<StyleInclude Source="avares://AsyncImageLoader.Avalonia/AdvancedImage.axaml" />
     </Application.Styles>
 </Application>

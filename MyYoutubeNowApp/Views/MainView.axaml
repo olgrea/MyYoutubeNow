@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
              xmlns:vm="clr-namespace:MyYoutubeNowApp.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MyYoutubeNowApp.Views.MainView"
@@ -12,10 +13,23 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-
-	<StackPanel Orientation="Horizontal" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" >
-		<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
-		<Button Content="Get" Command="{Binding GetUrlInfoCommand}"/>
-	</StackPanel>
-	
+	<Grid ColumnDefinitions="*" RowDefinitions="Auto, *, Auto" HorizontalAlignment="Center">
+		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20" HorizontalAlignment="Center">
+			<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
+			<Button Content="Get" Command="{Binding GetUrlInfoCommand}"/>
+		</StackPanel>
+		<ListBox Grid.Row="1" ItemsSource="{Binding VideoList}">
+			<ListBox.ItemTemplate>
+				<DataTemplate>
+					<DockPanel>
+						<CheckBox VerticalAlignment="Center" Margin="10,0"/>
+						<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
+						<TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0"/>
+						<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>
+					</DockPanel>
+				</DataTemplate>
+			</ListBox.ItemTemplate>
+		</ListBox>
+		<Button Grid.Row="2" HorizontalAlignment="Center" Margin="20" Content="Download and Convert" Command="{Binding GetUrlInfoCommand}"/>
+	</Grid>
 </UserControl>
