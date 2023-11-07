@@ -41,13 +41,13 @@ namespace MyYoutubeNow
         static public bool IsVideo(string url) => VideoId.TryParse(url) != null;
         static public bool IsPlaylist(string url) => PlaylistId.TryParse(url) != null;
 
-        public async Task<Video> GetVideoInfoAsync(string url)
+        public async Task<IVideo> GetVideoInfoAsync(string url)
         {
             VideoId id = VideoId.Parse(url);
             return await _client.GetVideoInfoAsync(id);
         }
 
-        public async Task<Playlist> GetPlaylistInfoAsync(string url)
+        public async Task<IPlaylist> GetPlaylistInfoAsync(string url)
         {
             PlaylistId id = PlaylistId.Parse(url);
             return await _client.GetPlaylistInfoAsync(id);
@@ -66,7 +66,7 @@ namespace MyYoutubeNow
             await ConvertVideo(info, split);
         }
 
-        public async Task ConvertVideo(Video info, bool split = false)
+        public async Task ConvertVideo(IVideo info, bool split = false)
         {
             var videoPath = await _client.DownloadVideo(info.Id, info);
             if (split)
@@ -86,12 +86,12 @@ namespace MyYoutubeNow
         {
             PlaylistId id = PlaylistId.Parse(url);
             Playlist info = await _client.GetPlaylistInfoAsync(id);
-            await ConvertPlaylist(info, concatenate);
+            await ConvertPlaylist(info, null, concatenate);
         }
 
-        public async Task ConvertPlaylist(Playlist info, bool concatenate = false)
+        public async Task ConvertPlaylist(IPlaylist info, IEnumerable<IPlaylistVideoFilter> filters = null,  bool concatenate = false)
         {
-            var videoPaths = await _client.DownloadPlaylist(info.Id, info);
+            var videoPaths = await _client.DownloadPlaylist(info, filters);
 
             if (concatenate)
             {

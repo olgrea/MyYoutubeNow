@@ -12,7 +12,7 @@
          to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
     <vm:MainViewModel />
   </Design.DataContext>
-
+	
 	<Grid ColumnDefinitions="*" RowDefinitions="Auto, *, Auto" HorizontalAlignment="Center">
 		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20" HorizontalAlignment="Center">
 			<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
@@ -24,7 +24,7 @@
 				<ListBox.ItemTemplate>
 					<DataTemplate>
 						<DockPanel>
-							<CheckBox VerticalAlignment="Center" Margin="10,0"/>
+							<CheckBox IsChecked="{Binding !Exists, Mode=OneTime}" VerticalAlignment="Center" Margin="10,0"/>
 							<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
 							<TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0"/>
 							<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>

@@ -8,12 +8,18 @@ using MyYoutubeNow;
 using YoutubeExplode.Playlists;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Common;
+using System.IO;
+using MyYoutubeNow.Utils;
+using System.Linq;
+using MyYoutubeNow.Client;
 
 namespace MyYoutubeNowApp.ViewModels;
 
 public partial class MainViewModel : ObservableValidator
 {
     private MyYoutubeNowService _myn;
+    private IPlaylist? _playlist;
+    private IVideo? _video;
 
 #if DEBUG
     // IDE wants a parameterless constructor to display design preview
@@ -36,7 +42,6 @@ public partial class MainViewModel : ObservableValidator
     public string Url { get; set; } = string.Empty;
 
     public ObservableCollection<VideoViewModel> VideoList { get; set; } = new ObservableCollection<VideoViewModel>();
-    //public ObservableCollection<VideoViewModel> VideoList { get; set; } = BuildTestViewModels();
 
     [RelayCommand]
     private async Task PullUrlInfo()
@@ -69,7 +74,19 @@ public partial class MainViewModel : ObservableValidator
     [RelayCommand]
     public async Task Download()
     {
-        await Task.CompletedTask;
+        if(_video != null)
+        {
+            await _myn.ConvertVideo(_video);
+        }
+        else if(_playlist != null)
+        {
+            var filters = VideoList.Where(v => v.Exists).Select(v => new VideoIdFilter(v.Id));
+            await _myn.ConvertPlaylist(_playlist, filters);
+        }
+        else
+        {
+            throw new ArgumentException("No playlist or video");
+        }
     }
 
     static ObservableCollection<VideoViewModel> BuildTestViewModels()

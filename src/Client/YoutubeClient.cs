@@ -68,7 +68,7 @@ namespace MyYoutubeNow.Client
             return _client.Playlists.GetVideosAsync(id);
         }
 
-        public async Task<string> DownloadVideo(VideoId id, Video videoInfo = null)
+        public async Task<string> DownloadVideo(VideoId id, IVideo videoInfo = null)
         {
             videoInfo ??= await _client.Videos.GetAsync(id);
             StreamManifest manifest = await _client.Videos.Streams.GetManifestAsync(id);
@@ -91,14 +91,18 @@ namespace MyYoutubeNow.Client
             return videoPath;
         }
 
-        public async Task<IEnumerable<string>> DownloadPlaylist(PlaylistId id, Playlist info = null)
+        public async Task<IEnumerable<string>> DownloadPlaylist(IPlaylist info, IEnumerable<IPlaylistVideoFilter> filters = null)
         {
-            info ??= await _client.Playlists.GetAsync(id);
-            IAsyncEnumerable<PlaylistVideo> videos = _client.Playlists.GetVideosAsync(id);
+            IAsyncEnumerable<PlaylistVideo> videos = _client.Playlists.GetVideosAsync(info.Id);
+        
+            // info ??= await _client.Playlists.GetAsync(id);
             //_logger.Info($"{videos.Count()} videos found in playlist {info.Title}");
             var videoPaths = new List<string>();
-            await foreach (var video in videos)
+            await foreach (PlaylistVideo video in videos)
             {
+                if (filters != null && filters.Any(f => f.ShouldFilter(video)))
+                    continue;
+
                 //_logger.Info($"{i+1}/{videos.Count}");
                 videoPaths.Add(await DownloadVideo(video.Url));
             }
