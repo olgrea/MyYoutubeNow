@@ -30,16 +30,19 @@ public partial class MainWindow : Window
             AllowMultiple = false,
         };
 
-        IStorageFolder? storageFolder = await topLevel.StorageProvider.TryGetFolderFromPathAsync(vm.SelectedOutputDir);
-        if (storageFolder != null)
-            options.SuggestedStartLocation = storageFolder;
+        if(vm.OutputDir != null)
+        {
+            IStorageFolder? storageFolder = await topLevel.StorageProvider.TryGetFolderFromPathAsync(vm.OutputDir);
+            if (storageFolder != null)
+                options.SuggestedStartLocation = storageFolder;
+        }
 
         IReadOnlyList<IStorageFolder> folder = await topLevel.StorageProvider.OpenFolderPickerAsync(options);
         if(folder.Any())
         {
             var newFolder = folder.First().TryGetLocalPath();
             if (newFolder != null)
-                vm.SelectedOutputDir = newFolder;
+                vm.OutputDir = newFolder;
         }
     }
 }

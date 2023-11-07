@@ -11,48 +11,43 @@ namespace MyYoutubeNow.Converters
 {
     public class MediaConverter
     {
+        readonly string DefaultOutputDirPath = AppDomain.CurrentDomain.BaseDirectory;
         FFmpegWrapper _ffmpeg;
-        string _baseDirectory;
         ILogger _logger;
 
         // TODO : add log handler instead of console
         public MediaConverter(ILogger logger)
         {
             _logger = logger;
-            _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            _ffmpeg = new FFmpegWrapper(_baseDirectory, logger);
+            _ffmpeg = new FFmpegWrapper(DefaultOutputDirPath, logger);
         }
-        
+      
         public IProgressReport ProgressReport 
         {
             get => _ffmpeg.ProgressReport; 
             set => _ffmpeg.ProgressReport = value; 
         }
 
-        public async Task<string> ConvertToMp3(IEnumerable<string> pathsToConvert, string outputDirName = "output")
+        public async Task ConvertToMp3(IEnumerable<string> pathsToConvert, string outputDirPath)
         {
             var list = pathsToConvert.ToList();
             for (var i = 0; i < list.Count; i++)
             {
                 _logger.Info($"Conversion {i+1}/{list.Count}");
-                await ConvertToMp3(list[i], outputDirName);
+                await ConvertToMp3(list[i], outputDirPath);
             }
-
-            return Path.Combine(Directory.GetCurrentDirectory(), outputDirName);
         }
 
-        public async Task<string> ConvertToMp3s(string videoMixPath, IEnumerable<Chapter> chapters, string outputDirName = "output")
+        public async Task ConvertToMp3s(string videoMixPath, IEnumerable<Chapter> chapters, string outputDirPath)
         {
-            var tempDir = videoMixPath.Replace(Path.GetFileName(videoMixPath), "");
+            if (!Directory.Exists(outputDirPath))
+                Directory.CreateDirectory(outputDirPath);
 
-            var outputDir = Path.Combine(_baseDirectory, outputDirName);
-            Directory.CreateDirectory(outputDir);
-            
             var chapterList = chapters.ToList();
             for (int i = 0; i < chapterList.Count; i++)
             {
                 var chapter = chapterList[i];
-                var partPath = Path.Combine(_baseDirectory, outputDirName, chapter.Title.RemoveInvalidChars() + ".mp3");
+                var partPath = Path.Combine(outputDirPath, chapter.Title.RemoveInvalidChars() + ".mp3");
 
                 var start = chapter.TimeRangeStartMs;
                 var end = i + 1 != chapterList.Count ? chapterList[i + 1].TimeRangeStartMs : 0;
@@ -60,28 +55,25 @@ namespace MyYoutubeNow.Converters
 
                 await _ffmpeg.VideoPartToMp3(videoMixPath, partPath, start, end, title);
             }
-
-            Directory.Delete(tempDir, true);
-            return outputDirName;
         }
 
-        public async Task<bool> ConvertToMp3(string pathToConvert, string outputDirName = "output")
+        public async Task<bool> ConvertToMp3(string pathToConvert, string outputDirPath)
         {
-            var outputDir = Path.Combine(_baseDirectory, outputDirName);
-            Directory.CreateDirectory(outputDir);
+            if(!Directory.Exists(outputDirPath))
+                Directory.CreateDirectory(outputDirPath);
 
             var filename = $"{Path.GetFileNameWithoutExtension(pathToConvert)}.mp3";
-            var filePath = Path.Combine(outputDir, filename);
+            var filePath = Path.Combine(outputDirPath, filename);
             return await _ffmpeg.ConvertToMp3(pathToConvert, filePath);
         }
 
-        public async Task<bool> ConcatenateMp3s(IEnumerable<string> pathsToMerge, string outputFileName, string outputDirName = "output")
+        public async Task<bool> ConcatenateMp3s(IEnumerable<string> pathsToMerge, string outputDirPath, string outputFileName)
         {
-            var outputDir = Path.Combine(_baseDirectory, outputDirName);
-            Directory.CreateDirectory(outputDir);
+            if (!Directory.Exists(outputDirPath))
+                Directory.CreateDirectory(outputDirPath);
 
             var filename = $"{outputFileName}.mp3";
-            var filePath = Path.Combine(outputDir, filename);
+            var filePath = Path.Combine(outputDirPath, filename);
 
             return await _ffmpeg.VideosToSingleMp3(pathsToMerge, filePath);
         }

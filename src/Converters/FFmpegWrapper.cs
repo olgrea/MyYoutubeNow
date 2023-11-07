@@ -17,9 +17,10 @@ namespace MyYoutubeNow.Converters
     class FFmpegWrapper
     {
         private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
-        private readonly string _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
-        private string _baseDirectory;
+        private string _binaryFolder;
         ILogger _logger;
+
+        private string _exePath => Path.Combine(_binaryFolder, "ffmpeg.exe");
 
         private string _tempPath;
         private string TempPath
@@ -36,11 +37,11 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public FFmpegWrapper(string baseDir, ILogger logger)
+        public FFmpegWrapper(string binaryFolder, ILogger logger)
         {
             _logger = logger;
-            _baseDirectory = baseDir;
-            GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _baseDirectory, TemporaryFilesFolder = TempPath });
+            _binaryFolder = binaryFolder;
+            GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _binaryFolder, TemporaryFilesFolder = TempPath });
         }
 
         ~FFmpegWrapper()
@@ -259,7 +260,10 @@ namespace MyYoutubeNow.Converters
 
             var releaseUrl = elem.GetProperty("browser_download_url").GetString();
             var zipFileName = Path.GetFileName(releaseUrl);
-            var zipPath = Path.Combine(_baseDirectory, zipFileName);
+
+            if (Directory.Exists(_binaryFolder))
+                Directory.CreateDirectory(_binaryFolder);
+            var zipPath = Path.Combine(_binaryFolder, zipFileName);
 
             await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), ProgressReport);
             _logger.Info("Completed");
@@ -271,12 +275,12 @@ namespace MyYoutubeNow.Converters
             await using (FileStream zipStream = File.OpenRead(zipPath))
             {
                 var zip = new ZipArchive(zipStream, ZipArchiveMode.Read);
-                zip.ExtractToDirectory(_baseDirectory);
+                zip.ExtractToDirectory(_binaryFolder);
             }
 
             foreach (string file in Directory.EnumerateFiles(extractedDir, "*.exe", SearchOption.AllDirectories))
             {
-                File.Copy(file, Path.Combine(_baseDirectory, Path.GetFileName(file)));
+                File.Copy(file, Path.Combine(_binaryFolder, Path.GetFileName(file)));
             }
 
             if (File.Exists(_exePath))

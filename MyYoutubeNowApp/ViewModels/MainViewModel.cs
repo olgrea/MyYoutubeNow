@@ -17,6 +17,7 @@ namespace MyYoutubeNowApp.ViewModels;
 
 public partial class MainViewModel : ObservableValidator
 {
+    readonly string DefaultOutputDirPath = AppDomain.CurrentDomain.BaseDirectory;
     private MyYoutubeNowService _myn;
     private IPlaylist? _playlist;
     private IVideo? _video;
@@ -29,22 +30,15 @@ public partial class MainViewModel : ObservableValidator
     public MainViewModel(MyYoutubeNowService myn)
     {
         _myn = myn;
-        SetOutputDir();
-        _outputDir = _selectedOutputDir = AppDomain.CurrentDomain.BaseDirectory;
+        OutputDir = DefaultOutputDirPath;
     }
 
     [ObservableProperty]
     private string _outputDir;
 
-    [ObservableProperty]
-    private string _selectedOutputDir;
-
     public string Url { get; set; } = string.Empty;
 
     public ObservableCollection<VideoViewModel> VideoList { get; set; } = new ObservableCollection<VideoViewModel>();
-
-    partial void OnSelectedOutputDirChanged(string value) => SetOutputDir();
-
 
     [RelayCommand]
     private async Task PullUrlInfo()
@@ -52,11 +46,10 @@ public partial class MainViewModel : ObservableValidator
         VideoList.Clear();
         _video = null;
         _playlist = null;
-
-        if(MyYoutubeNowService.IsVideo(Url))
+        
+        if (MyYoutubeNowService.IsVideo(Url))
         {
             _video = await _myn.GetVideoInfoAsync(Url);
-            SetOutputDir();
             VideoList.Add(new VideoViewModel(_video) 
             {
                 Selected = !File.Exists(Path.Combine(OutputDir, $"{_video.Title.RemoveInvalidChars()}.mp3"))
@@ -65,12 +58,12 @@ public partial class MainViewModel : ObservableValidator
         else if(MyYoutubeNowService.IsPlaylist(Url)) 
         {
             _playlist = await _myn.GetPlaylistInfoAsync(Url);
-            SetOutputDir();
+
             await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
             {
                 VideoList.Add(new VideoViewModel(vid) 
                 {
-                    Selected = !File.Exists(Path.Combine(OutputDir, $"{vid.Title.RemoveInvalidChars()}.mp3"))
+                    Selected = !File.Exists(Path.Combine(Path.Combine(OutputDir, _playlist.Title.RemoveInvalidChars()), $"{vid.Title.RemoveInvalidChars()}.mp3"))
                 });
             }
         }
@@ -85,28 +78,18 @@ public partial class MainViewModel : ObservableValidator
     {
         if(_video != null)
         {
+            _myn.OutputDir = OutputDir;
             await _myn.ConvertVideo(_video);
         }
         else if(_playlist != null)
         {
+            _myn.OutputDir = OutputDir;
             var filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id));
             await _myn.ConvertPlaylist(_playlist, filters);
         }
         else
         {
             throw new ArgumentException("No playlist or video");
-        }
-    }
-
-    private void SetOutputDir()
-    {
-        if (_playlist != null)
-        {
-            OutputDir = Path.Combine(SelectedOutputDir, _playlist.Title.RemoveInvalidChars());
-        }
-        else
-        {
-            OutputDir = SelectedOutputDir;
         }
     }
 }

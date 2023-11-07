@@ -34,7 +34,7 @@ namespace MyYoutubeNow
             _client.ProgressReport = _converter.ProgressReport = progressReport;
         }
 
-        public string OutputDir = AppDomain.CurrentDomain.BaseDirectory;
+        public string OutputDir { get; set; }
 
         public LoggingConfiguration LoggingConfig => _loggingConfig;
 
@@ -72,11 +72,11 @@ namespace MyYoutubeNow
             if (split)
             {
                 var chapters = await _client.GetChaptersAsync(info.Id);
-                await _converter.ConvertToMp3s(videoPath, chapters, info.Title.RemoveInvalidChars());
+                await _converter.ConvertToMp3s(videoPath, chapters, OutputDir);
             }
             else
             {
-                await _converter.ConvertToMp3(videoPath);
+                await _converter.ConvertToMp3(videoPath, OutputDir);
             }
             if (File.Exists(videoPath))
                 File.Delete(videoPath);
@@ -95,12 +95,13 @@ namespace MyYoutubeNow
 
             if (concatenate)
             {
-                await _converter.ConcatenateMp3s(videoPaths, $"{info.Title.RemoveInvalidChars()}");
+                await _converter.ConcatenateMp3s(videoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}");
             }
             else
             {
-                await _converter.ConvertToMp3(videoPaths, $"{info.Title.RemoveInvalidChars()}");
+                await _converter.ConvertToMp3(videoPaths, Path.Combine(OutputDir, $"{info.Title.RemoveInvalidChars()}"));
             }
+
             foreach (var path in videoPaths)
             {
                 if (File.Exists(path))
