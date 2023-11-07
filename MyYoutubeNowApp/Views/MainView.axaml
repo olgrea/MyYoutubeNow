@@ -16,20 +16,23 @@
 	<Grid ColumnDefinitions="*" RowDefinitions="Auto, *, Auto" HorizontalAlignment="Center">
 		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20" HorizontalAlignment="Center">
 			<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
-			<Button Content="Get" Command="{Binding GetUrlInfoCommand}"/>
+			<Button Content="Get" Command="{Binding PullUrlInfoCommand}"/>
 		</StackPanel>
-		<ListBox Grid.Row="1" ItemsSource="{Binding VideoList}">
-			<ListBox.ItemTemplate>
-				<DataTemplate>
-					<DockPanel>
-						<CheckBox VerticalAlignment="Center" Margin="10,0"/>
-						<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
-						<TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0"/>
-						<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>
-					</DockPanel>
-				</DataTemplate>
-			</ListBox.ItemTemplate>
-		</ListBox>
-		<Button Grid.Row="2" HorizontalAlignment="Center" Margin="20" Content="Download and Convert" Command="{Binding GetUrlInfoCommand}"/>
+		<!-- TODO : create different styles for single video and playlist-->
+		<ScrollViewer Grid.Row="1" >
+			<ListBox ItemsSource="{Binding VideoList}">
+				<ListBox.ItemTemplate>
+					<DataTemplate>
+						<DockPanel>
+							<CheckBox VerticalAlignment="Center" Margin="10,0"/>
+							<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
+							<TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0"/>
+							<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>
+						</DockPanel>
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+		</ScrollViewer>
+		<Button Grid.Row="2" HorizontalAlignment="Center" Margin="20" Content="Download and Convert" Command="{Binding DownloadCommand}"/>
 	</Grid>
 </UserControl>

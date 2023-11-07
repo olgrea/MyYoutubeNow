@@ -12,6 +12,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using NLog.Layouts;
 using NLog.Config;
+using System.Collections.Generic;
 
 namespace MyYoutubeNow
 {
@@ -50,14 +51,25 @@ namespace MyYoutubeNow
             return await _client.GetPlaylistInfoAsync(id);
         }
 
+        public IAsyncEnumerable<PlaylistVideo> GetPlaylistVideosInfoAsync(string url)
+        {
+            PlaylistId id = PlaylistId.Parse(url);
+            return _client.GetPlaylistVideosInfoAsync(id);
+        }
+
         public async Task ConvertVideo(string url, bool split = false)
         {
             VideoId id = VideoId.Parse(url);
             Video info = await _client.GetVideoInfoAsync(id);
-            var videoPath = await _client.DownloadVideo(id, info);
+            await ConvertVideo(info, split);
+        }
+
+        public async Task ConvertVideo(Video info, bool split = false)
+        {
+            var videoPath = await _client.DownloadVideo(info.Id, info);
             if (split)
             {
-                var chapters = await _client.GetChaptersAsync(id);
+                var chapters = await _client.GetChaptersAsync(info.Id);
                 await _converter.ConvertToMp3s(videoPath, chapters, info.Title.RemoveInvalidChars());
             }
             else
@@ -72,7 +84,12 @@ namespace MyYoutubeNow
         {
             PlaylistId id = PlaylistId.Parse(url);
             Playlist info = await _client.GetPlaylistInfoAsync(id);
-            var videoPaths = await _client.DownloadPlaylist(id, info);
+            await ConvertPlaylist(info, concatenate);
+        }
+
+        public async Task ConvertPlaylist(Playlist info, bool concatenate = false)
+        {
+            var videoPaths = await _client.DownloadPlaylist(info.Id, info);
 
             if (concatenate)
             {

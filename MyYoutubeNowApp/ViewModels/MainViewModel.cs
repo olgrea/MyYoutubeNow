@@ -27,24 +27,36 @@ public partial class MainViewModel : ObservableValidator
 
     public string Url { get; set; } = string.Empty;
 
-    //public ObservableCollection<VideoViewModel> VideoList { get; set; } = new ObservableCollection<VideoViewModel>();
-    public ObservableCollection<VideoViewModel> VideoList { get; set; } = BuildTestViewModels();
+    public ObservableCollection<VideoViewModel> VideoList { get; set; } = new ObservableCollection<VideoViewModel>();
+    //public ObservableCollection<VideoViewModel> VideoList { get; set; } = BuildTestViewModels();
 
     [RelayCommand]
-    private async Task GetUrlInfo()
+    private async Task PullUrlInfo()
     {
+        VideoList.Clear();
         if(MyYoutubeNowService.IsVideo(Url))
         {
-            Video vid = await _myn.GetVideoInfoAsync(Url);
+            IVideo vid = await _myn.GetVideoInfoAsync(Url);
+            VideoList.Add(new VideoViewModel(vid));
         }
         else if(MyYoutubeNowService.IsPlaylist(Url)) 
         {
-            Playlist pl = await _myn.GetPlaylistInfoAsync(Url);
+            IPlaylist pl = await _myn.GetPlaylistInfoAsync(Url);
+            await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
+            {
+                VideoList.Add(new VideoViewModel(vid));
+            }
         }
         else
         {
             throw new ArgumentException("Unrecognized url");
         }
+    }
+
+    [RelayCommand]
+    public async Task Download()
+    {
+        await Task.CompletedTask;
     }
 
     static ObservableCollection<VideoViewModel> BuildTestViewModels()

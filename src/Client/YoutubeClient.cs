@@ -62,7 +62,12 @@ namespace MyYoutubeNow.Client
         {
             return await _client.Playlists.GetAsync(id);
         }
-        
+
+        public IAsyncEnumerable<PlaylistVideo> GetPlaylistVideosInfoAsync(PlaylistId id)
+        {
+            return _client.Playlists.GetVideosAsync(id);
+        }
+
         public async Task<string> DownloadVideo(VideoId id, Video videoInfo = null)
         {
             videoInfo ??= await _client.Videos.GetAsync(id);
@@ -89,7 +94,7 @@ namespace MyYoutubeNow.Client
         public async Task<IEnumerable<string>> DownloadPlaylist(PlaylistId id, Playlist info = null)
         {
             info ??= await _client.Playlists.GetAsync(id);
-            var videos = _client.Playlists.GetVideosAsync(id);
+            IAsyncEnumerable<PlaylistVideo> videos = _client.Playlists.GetVideosAsync(id);
             //_logger.Info($"{videos.Count()} videos found in playlist {info.Title}");
             var videoPaths = new List<string>();
             await foreach (var video in videos)
