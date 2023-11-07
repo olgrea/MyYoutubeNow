@@ -57,7 +57,7 @@ namespace MyYoutubeNow.Utils
 
                         await fileStream.WriteAsync(buffer, 0, read);
                         totalRead += read;
-                        progress.Report((double) totalRead / totalSize);
+                        progress?.Report((double) totalRead / totalSize);
                     } while (true);
                 }
             }
