@@ -33,6 +33,9 @@
 				</ListBox.ItemTemplate>
 			</ListBox>
 		</ScrollViewer>
-		<Button Grid.Row="2" HorizontalAlignment="Center" Margin="20" Content="Download and Convert" Command="{Binding DownloadCommand}"/>
+		<StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="20" >
+			<Button Content="Download and Convert" Command="{Binding DownloadCommand}" HorizontalAlignment="Center"/>			
+			<TextBlock Text="{Binding OutputDir, StringFormat='Output : {0}'}" FontSize="12" HorizontalAlignment="Center"/>
+		</StackPanel>
 	</Grid>
 </UserControl>

@@ -23,7 +23,15 @@ public partial class MainViewModel : ObservableValidator
     public MainViewModel(MyYoutubeNowService myn)
     {
         _myn = myn;
+
+        _outputDir = _selectedOutputDir = AppDomain.CurrentDomain.BaseDirectory;
     }
+
+    [ObservableProperty]
+    private string _outputDir;
+
+    [ObservableProperty]
+    private string _selectedOutputDir;
 
     public string Url { get; set; } = string.Empty;
 
@@ -34,17 +42,22 @@ public partial class MainViewModel : ObservableValidator
     private async Task PullUrlInfo()
     {
         VideoList.Clear();
+        _video = null;
+        _playlist = null;
+
         if(MyYoutubeNowService.IsVideo(Url))
         {
-            IVideo vid = await _myn.GetVideoInfoAsync(Url);
-            VideoList.Add(new VideoViewModel(vid));
+            _video = await _myn.GetVideoInfoAsync(Url);
+            OutputDir = SelectedOutputDir;
+            VideoList.Add(new VideoViewModel(_video, OutputDir));
         }
         else if(MyYoutubeNowService.IsPlaylist(Url)) 
         {
-            IPlaylist pl = await _myn.GetPlaylistInfoAsync(Url);
+            _playlist = await _myn.GetPlaylistInfoAsync(Url);
+            OutputDir = Path.Combine(SelectedOutputDir, _playlist.Title.RemoveInvalidChars());
             await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
             {
-                VideoList.Add(new VideoViewModel(vid));
+                VideoList.Add(new VideoViewModel(vid, OutputDir));
             }
         }
         else

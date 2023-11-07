@@ -34,6 +34,8 @@ namespace MyYoutubeNow
             _client.ProgressReport = _converter.ProgressReport = progressReport;
         }
 
+        public string OutputDir = AppDomain.CurrentDomain.BaseDirectory;
+
         public LoggingConfiguration LoggingConfig => _loggingConfig;
 
         static public bool IsVideo(string url) => VideoId.TryParse(url) != null;

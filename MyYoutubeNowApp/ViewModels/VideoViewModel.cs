@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using YoutubeExplode.Common;
@@ -10,12 +11,15 @@ namespace MyYoutubeNowApp.ViewModels
     public partial class VideoViewModel : ObservableObject
     {
         IVideo _video;
+        string _outputDir;
 
         public VideoViewModel() { }
 
-        public VideoViewModel(IVideo video)
+        public VideoViewModel(IVideo video, string outputDir)
         {
             _video = video;
+            
+            _outputDir = outputDir;
 
             _title = video.Title;
             _thumbnail = video.Thumbnails.FirstOrDefault();
@@ -23,12 +27,12 @@ namespace MyYoutubeNowApp.ViewModels
         }
 
         [ObservableProperty]
-        public string _title;
+        private string _title;
 
         [ObservableProperty]
-        public TimeSpan? _duration;
+        private TimeSpan? _duration;
 
         [ObservableProperty]
-        public Thumbnail? _thumbnail;
+        private Thumbnail? _thumbnail;
     }
 }
