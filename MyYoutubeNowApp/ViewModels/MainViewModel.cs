@@ -29,7 +29,7 @@ public partial class MainViewModel : ObservableValidator
     public MainViewModel(MyYoutubeNowService myn)
     {
         _myn = myn;
-
+        SetOutputDir();
         _outputDir = _selectedOutputDir = AppDomain.CurrentDomain.BaseDirectory;
     }
 
@@ -43,6 +43,9 @@ public partial class MainViewModel : ObservableValidator
 
     public ObservableCollection<VideoViewModel> VideoList { get; set; } = new ObservableCollection<VideoViewModel>();
 
+    partial void OnSelectedOutputDirChanged(string value) => SetOutputDir();
+
+
     [RelayCommand]
     private async Task PullUrlInfo()
     {
@@ -53,16 +56,22 @@ public partial class MainViewModel : ObservableValidator
         if(MyYoutubeNowService.IsVideo(Url))
         {
             _video = await _myn.GetVideoInfoAsync(Url);
-            OutputDir = SelectedOutputDir;
-            VideoList.Add(new VideoViewModel(_video, OutputDir));
+            SetOutputDir();
+            VideoList.Add(new VideoViewModel(_video) 
+            {
+                Selected = !File.Exists(Path.Combine(OutputDir, $"{_video.Title.RemoveInvalidChars()}.mp3"))
+            });
         }
         else if(MyYoutubeNowService.IsPlaylist(Url)) 
         {
             _playlist = await _myn.GetPlaylistInfoAsync(Url);
-            OutputDir = Path.Combine(SelectedOutputDir, _playlist.Title.RemoveInvalidChars());
+            SetOutputDir();
             await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
             {
-                VideoList.Add(new VideoViewModel(vid, OutputDir));
+                VideoList.Add(new VideoViewModel(vid) 
+                {
+                    Selected = !File.Exists(Path.Combine(OutputDir, $"{vid.Title.RemoveInvalidChars()}.mp3"))
+                });
             }
         }
         else
@@ -80,12 +89,24 @@ public partial class MainViewModel : ObservableValidator
         }
         else if(_playlist != null)
         {
-            var filters = VideoList.Where(v => v.Exists).Select(v => new VideoIdFilter(v.Id));
+            var filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id));
             await _myn.ConvertPlaylist(_playlist, filters);
         }
         else
         {
             throw new ArgumentException("No playlist or video");
+        }
+    }
+
+    private void SetOutputDir()
+    {
+        if (_playlist != null)
+        {
+            OutputDir = Path.Combine(SelectedOutputDir, _playlist.Title.RemoveInvalidChars());
+        }
+        else
+        {
+            OutputDir = SelectedOutputDir;
         }
     }
 }

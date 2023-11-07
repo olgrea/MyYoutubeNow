@@ -12,15 +12,10 @@ namespace MyYoutubeNowApp.ViewModels
     public partial class VideoViewModel : ObservableObject
     {
         IVideo _video;
-        string _outputDir;
 
-        public VideoViewModel(IVideo video, string outputDir)
+        public VideoViewModel(IVideo video)
         {
-            _video = video;
-            
-            _outputDir = outputDir;
-            _exists = File.Exists(Path.Combine(outputDir, $"{video.Title.RemoveInvalidChars()}.mp3"));
-
+            _video = video;          
             _title = video.Title;
             _thumbnail = video.Thumbnails.FirstOrDefault();
             _duration = video.Duration;
@@ -29,7 +24,7 @@ namespace MyYoutubeNowApp.ViewModels
         public VideoId Id => _video.Id;
 
         [ObservableProperty]
-        public bool _exists;
+        private bool _selected;
 
         [ObservableProperty]
         private string _title;
