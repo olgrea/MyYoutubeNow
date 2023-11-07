@@ -88,29 +88,4 @@ public partial class MainViewModel : ObservableValidator
             throw new ArgumentException("No playlist or video");
         }
     }
-
-    static ObservableCollection<VideoViewModel> BuildTestViewModels()
-    {
-        return new ObservableCollection<VideoViewModel>()
-        {
-            new VideoViewModel()
-            {
-                Title = "Video1",
-                Duration = TimeSpan.FromMinutes(1),
-                Thumbnail = new Thumbnail(@"..\..\..\Assets\thumb1.png", new Resolution(64,64)),
-            },
-            new VideoViewModel()
-            {
-                Title = "Video2",
-                Duration = TimeSpan.FromMinutes(2),
-                Thumbnail = new Thumbnail(@"..\..\..\Assets\thumb2.png", new Resolution(64,64)),
-            },
-            new VideoViewModel()
-            {
-                Title = "Video3",
-                Duration = TimeSpan.FromMinutes(3),
-                Thumbnail = new Thumbnail(@"..\..\..\Assets\thumb3.png", new Resolution(64,64)),
-            },
-        };
-    }
 }

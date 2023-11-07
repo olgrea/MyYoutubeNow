@@ -14,8 +14,6 @@ namespace MyYoutubeNowApp.ViewModels
         IVideo _video;
         string _outputDir;
 
-        public VideoViewModel() { }
-
         public VideoViewModel(IVideo video, string outputDir)
         {
             _video = video;
