@@ -31,7 +31,8 @@
 						<DockPanel>
 							<CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="10,0"/>
 							<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
-							<TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0"/>
+							<Button Content="{Binding Title}"  Click="GoToUrl"
+									VerticalAlignment="Center" Margin="10,0" Background="Transparent"/>
 							<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>
 						</DockPanel>
 					</DataTemplate>

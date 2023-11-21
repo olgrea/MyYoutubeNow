@@ -17,11 +17,15 @@ namespace MyYoutubeNowApp.ViewModels
         {
             _video = video;          
             _title = video.Title;
+            _url = video.Url;
             _thumbnail = video.Thumbnails.FirstOrDefault();
             _duration = video.Duration;
         }
 
         public VideoId Id => _video.Id;
+
+        [ObservableProperty]
+        private string _url;
 
         [ObservableProperty]
         private bool _selected;

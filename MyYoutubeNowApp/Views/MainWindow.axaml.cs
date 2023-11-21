@@ -1,9 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using MyYoutubeNowApp.ViewModels;
 
 namespace MyYoutubeNowApp.Views;
@@ -44,5 +48,20 @@ public partial class MainWindow : Window
             if (newFolder != null)
                 vm.OutputDir = newFolder;
         }
+    }
+
+    public void GoToUrl(object sender, RoutedEventArgs e)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            throw new SystemException("OS not supported");
+
+        Button? button = sender as Button;
+        VideoViewModel? vm = button?.DataContext as VideoViewModel;
+        string? url = vm?.Url;
+        ArgumentNullException.ThrowIfNullOrEmpty(url);
+
+        //https://stackoverflow.com/a/2796367/241446
+        using var proc = new Process { StartInfo = { UseShellExecute = true, FileName = url } };
+        proc.Start();
     }
 }
