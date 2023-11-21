@@ -11,6 +11,7 @@ using MyYoutubeNow.Utils;
 using FFMpegCore;
 using Instances;
 using NLog;
+using MyYoutubeNow.Progress;
 
 namespace MyYoutubeNow.Converters
 {
@@ -52,9 +53,9 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public IProgressReport ProgressReport { get; set; }
+        public IProgress DefaultProgressReport { get; set; }
 
-        public async Task<bool> ConvertToMp3(string videoPath, string outputPath)
+        public async Task<bool> ConvertToMp3(string videoPath, string outputPath, IProgress progressReport = null)
         {
             if(!FFmpegFound)
             {
@@ -62,6 +63,7 @@ namespace MyYoutubeNow.Converters
                 await Download();
             }
 
+            progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
@@ -81,7 +83,7 @@ namespace MyYoutubeNow.Converters
                     )
                     .NotifyOnProgress(progress =>
                     {
-                        ProgressReport?.Report(progress/100d);
+                        progressReport?.Report(progress/100d);
                     }, audioStream.Duration)
                     .ProcessAsynchronously();
 
@@ -96,7 +98,7 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public async Task<bool> VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title)
+        public async Task<bool> VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title, IProgress progressReport = null)
         {
             if (!FFmpegFound)
             {
@@ -104,6 +106,7 @@ namespace MyYoutubeNow.Converters
                 await Download();
             }
 
+            progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
@@ -125,7 +128,7 @@ namespace MyYoutubeNow.Converters
                     )
                     .NotifyOnProgress(progress =>
                     {
-                        ProgressReport?.Report(progress.TotalMilliseconds / (double)(end-start));
+                        progressReport?.Report(progress.TotalMilliseconds / (double)(end-start));
                     })
                     .ProcessAsynchronously();
                 
@@ -141,7 +144,7 @@ namespace MyYoutubeNow.Converters
 
         }
 
-        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath)
+        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath, IProgress progressReport = null)
         {
             if (!FFmpegFound)
             {
@@ -153,6 +156,7 @@ namespace MyYoutubeNow.Converters
 
             try
             {
+                progressReport ??= DefaultProgressReport;
                 var paths = videoPaths.ToList();
                 
                 var mediaInfo = await FFProbe.AnalyseAsync(paths[0]);
@@ -175,7 +179,7 @@ namespace MyYoutubeNow.Converters
                     )
                     .NotifyOnProgress(progress =>
                     {
-                        ProgressReport?.Report(progress.TotalMilliseconds / totalDuration);
+                        progressReport?.Report(progress.TotalMilliseconds / totalDuration);
                     })
                     .ProcessAsynchronously();
 
@@ -265,7 +269,7 @@ namespace MyYoutubeNow.Converters
                 Directory.CreateDirectory(_binaryFolder);
             var zipPath = Path.Combine(_binaryFolder, zipFileName);
 
-            await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), ProgressReport);
+            await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), DefaultProgressReport);
             _logger.Info("Completed");
 
             var extractedDir = zipPath.Replace(".zip", "");

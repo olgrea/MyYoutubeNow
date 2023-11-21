@@ -1,12 +1,12 @@
 ﻿using YoutubeExplode.Videos;
 
-namespace MyYoutubeNow.Client
+namespace MyYoutubeNow.Options.Filters
 {
-    public class VideoIdFilter : IPlaylistVideoFilter
+    public class VideoIdFilter : IVideoFilter
     {
         public VideoIdFilter(VideoId videoId)
         {
-            VideoId = videoId;  
+            VideoId = videoId;
         }
 
         public VideoId VideoId { get; init; }

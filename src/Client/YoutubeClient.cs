@@ -13,6 +13,9 @@ using YoutubeExplode.Videos.Streams;
 using AngleSharp.Html.Dom;
 using MyYoutubeNow.Utils;
 using NLog;
+using MyYoutubeNow.Progress;
+using MyYoutubeNow.Options.Filters;
+using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 
 namespace MyYoutubeNow.Client
 {
@@ -26,6 +29,8 @@ namespace MyYoutubeNow.Client
             TimeRangeStartMs = timeRangeStart;
         }
     }
+
+    internal record TempVideo(VideoId Id, string Path);
 
     public class YoutubeClient
     {
@@ -51,7 +56,7 @@ namespace MyYoutubeNow.Client
             _logger = logger;
         }
 
-        public IProgressReport ProgressReport { get; set; }
+        public IProgress DefaultProgressReporter { get; set; }
 
         public async Task<Video> GetVideoInfoAsync(VideoId id)
         {
@@ -68,9 +73,15 @@ namespace MyYoutubeNow.Client
             return _client.Playlists.GetVideosAsync(id);
         }
 
-        public async Task<string> DownloadVideo(VideoId id, IVideo videoInfo = null)
+        public async Task<string> DownloadVideo(VideoId id, IProgress progress = null)
         {
-            videoInfo ??= await _client.Videos.GetAsync(id);
+            var videoInfo = await _client.Videos.GetAsync(id);
+            return await DownloadVideo(videoInfo, progress);
+        }
+
+        public async Task<string> DownloadVideo(IVideo videoInfo, IProgress progress = null)
+        {
+            VideoId id = videoInfo.Id;
             StreamManifest manifest = await _client.Videos.Streams.GetManifestAsync(id);
             _logger.Info($"Downloading video {videoInfo.Title}...");
             
@@ -85,32 +96,37 @@ namespace MyYoutubeNow.Client
             Directory.CreateDirectory(tempDir);
             
             var videoPath = Path.Combine(tempDir, $"{videoInfo.Title.RemoveInvalidChars()}.{stream.Container.Name}");
-            
-            await _client.Videos.Streams.DownloadAsync(stream, videoPath, ProgressReport);
+
+            progress ??= DefaultProgressReporter;
+            await _client.Videos.Streams.DownloadAsync(stream, videoPath, progress);
             _logger.Info("Completed");
             return videoPath;
         }
 
-        public async Task<IEnumerable<string>> DownloadPlaylist(IPlaylist info, IEnumerable<IPlaylistVideoFilter> filters = null)
+        internal async Task<IEnumerable<TempVideo>> DownloadPlaylist(IPlaylist info, IEnumerable<IVideoFilter> filters = null, IPlaylistProgress playlistProgress = null)
         {
             IAsyncEnumerable<PlaylistVideo> videos = _client.Playlists.GetVideosAsync(info.Id);
         
             // info ??= await _client.Playlists.GetAsync(id);
             //_logger.Info($"{videos.Count()} videos found in playlist {info.Title}");
-            var videoPaths = new List<string>();
+            var tempVideoPaths = new List<TempVideo>();
             await foreach (PlaylistVideo video in videos)
             {
                 if (filters != null && filters.Any(f => f.ShouldFilter(video)))
                     continue;
 
                 //_logger.Info($"{i+1}/{videos.Count}");
-                videoPaths.Add(await DownloadVideo(video.Url));
+                IProgress downloadProgress = null;
+                if (playlistProgress != null && playlistProgress.TryGetValue(video.Id, out IVideoProgress videoProgress))
+                    downloadProgress = videoProgress?.DownloadProgress;
+
+                tempVideoPaths.Add(new TempVideo(video.Id, await DownloadVideo(video, downloadProgress)));
             }
 
-            return videoPaths;
+            return tempVideoPaths;
         }
         
-        public async Task<List<Chapter>> GetChaptersAsync(VideoId videoId)
+        internal async Task<List<Chapter>> GetChaptersAsync(VideoId videoId)
         {
             try
             {

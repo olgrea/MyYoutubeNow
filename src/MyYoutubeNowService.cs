@@ -13,6 +13,9 @@ using Microsoft.Extensions.DependencyInjection;
 using NLog.Layouts;
 using NLog.Config;
 using System.Collections.Generic;
+using MyYoutubeNow.Progress;
+using MyYoutubeNow.Options;
+using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 
 namespace MyYoutubeNow
 {
@@ -23,7 +26,7 @@ namespace MyYoutubeNow
         IServiceProvider _services;
         LoggingConfiguration _loggingConfig;
 
-        public MyYoutubeNowService(IProgressReport progressReport = null)
+        public MyYoutubeNowService(IProgress progressReport = null)
         {
             _loggingConfig = ConfigureLogger();
             _services = ConfigureServices();
@@ -31,8 +34,9 @@ namespace MyYoutubeNow
             _client = _services.GetService<YoutubeClient>();
             _converter = _services.GetService<MediaConverter>();
 
-            _client.ProgressReport = _converter.ProgressReport = progressReport;
+            _client.DefaultProgressReporter = _converter.DefaultProgressReport = progressReport;
         }
+
 
         public string OutputDir { get; set; }
 
@@ -59,53 +63,81 @@ namespace MyYoutubeNow
             return _client.GetPlaylistVideosInfoAsync(id);
         }
 
-        public async Task ConvertVideo(string url, bool split = false)
+        public async Task ConvertVideo(string url, IVideoProgress videoProgress = null)
+        {
+            await ConvertVideo(url, new VideoOptions(), videoProgress);
+        }
+
+        public async Task ConvertVideo(string url, IVideoOptions options, IVideoProgress videoProgress = null)
         {
             VideoId id = VideoId.Parse(url);
             Video info = await _client.GetVideoInfoAsync(id);
-            await ConvertVideo(info, split);
+            await ConvertVideo(info, options, videoProgress);
         }
 
-        public async Task ConvertVideo(IVideo info, bool split = false)
+        public async Task ConvertVideo(IVideo info, IVideoProgress videoProgress = null)
         {
-            var videoPath = await _client.DownloadVideo(info.Id, info);
-            if (split)
+            await ConvertVideo(info, new VideoOptions(), videoProgress);
+        }
+
+        public async Task ConvertVideo(IVideo info, IVideoOptions options, IVideoProgress videoProgress = null)
+        {
+            var videoPath = await _client.DownloadVideo(info, videoProgress?.DownloadProgress);
+            if (options.Split)
             {
                 var chapters = await _client.GetChaptersAsync(info.Id);
-                await _converter.ConvertToMp3s(videoPath, chapters, OutputDir);
+                await _converter.ConvertToMp3s(videoPath, chapters, OutputDir, videoProgress?.ConvertProgress);
             }
             else
             {
-                await _converter.ConvertToMp3(videoPath, OutputDir);
+                await _converter.ConvertToMp3(videoPath, OutputDir, videoProgress?.ConvertProgress);
             }
             if (File.Exists(videoPath))
                 File.Delete(videoPath);
         }
 
-        public async Task ConvertPlaylist(string url, bool concatenate = false)
+        public async Task ConvertPlaylist(string url, IPlaylistProgress playlistProgress = null)
+        {
+            await ConvertPlaylist(url, new PlaylistOptions(), playlistProgress);
+        }
+
+        public async Task ConvertPlaylist(string url, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
         {
             PlaylistId id = PlaylistId.Parse(url);
             Playlist info = await _client.GetPlaylistInfoAsync(id);
-            await ConvertPlaylist(info, null, concatenate);
+            await ConvertPlaylist(info, playlistOptions, playlistProgress);
         }
 
-        public async Task ConvertPlaylist(IPlaylist info, IEnumerable<IPlaylistVideoFilter> filters = null,  bool concatenate = false)
+        public async Task ConvertPlaylist(IPlaylist info, IPlaylistProgress playlistProgress = null)
         {
-            var videoPaths = await _client.DownloadPlaylist(info, filters);
+            await ConvertPlaylist(info, new PlaylistOptions(), playlistProgress);
+        }
 
-            if (concatenate)
+        public async Task ConvertPlaylist(IPlaylist info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        {
+            IEnumerable<TempVideo> tempVideoPaths = await _client.DownloadPlaylist(info, playlistOptions.Filters, playlistProgress);
+
+            Dictionary<TempVideo, IProgress> progressDict = null;
+            if(playlistProgress != null)
             {
-                await _converter.ConcatenateMp3s(videoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}");
+                progressDict = new();
+                foreach (TempVideo tempVideo in tempVideoPaths)
+                    progressDict.Add(tempVideo, playlistProgress[tempVideo.Id].ConvertProgress);
+            }
+            
+            if (playlistOptions.Concatenate)
+            {
+                await _converter.ConcatenateMp3s(tempVideoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
             }
             else
             {
-                await _converter.ConvertToMp3(videoPaths, Path.Combine(OutputDir, $"{info.Title.RemoveInvalidChars()}"));
+                await _converter.ConvertToMp3(tempVideoPaths, Path.Combine(OutputDir, $"{info.Title.RemoveInvalidChars()}"), progressDict);
             }
 
-            foreach (var path in videoPaths)
+            foreach (var tempVideo in tempVideoPaths)
             {
-                if (File.Exists(path))
-                    File.Delete(path);
+                if (File.Exists(tempVideo.Path))
+                    File.Delete(tempVideo.Path);
             }
         }
 
