@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:themes="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
              x:Class="MyYoutubeNowApp.App"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
@@ -7,5 +8,6 @@
     <Application.Styles>
         <FluentTheme />
 		<StyleInclude Source="avares://AsyncImageLoader.Avalonia/AdvancedImage.axaml" />
+		<themes:MaterialTheme BaseTheme="Dark" PrimaryColor="Purple" SecondaryColor="Lime" />
     </Application.Styles>
 </Application>

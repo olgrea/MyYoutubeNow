@@ -11,7 +11,10 @@ using YoutubeExplode.Common;
 using System.IO;
 using MyYoutubeNow.Utils;
 using System.Linq;
-using MyYoutubeNow.Client;
+using MyYoutubeNow.Options.Filters;
+using MyYoutubeNow.Options;
+using MyYoutubeNow.Progress;
+using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 
 namespace MyYoutubeNowApp.ViewModels;
 
@@ -19,8 +22,7 @@ public partial class MainViewModel : ObservableValidator
 {
     readonly string DefaultOutputDirPath = AppDomain.CurrentDomain.BaseDirectory;
     private MyYoutubeNowService _myn;
-    private IPlaylist? _playlist;
-    private IVideo? _video;
+    private UrlInfo? _urlInfo = null;
 
 #if DEBUG
     // IDE wants a parameterless constructor to display design preview
@@ -44,26 +46,29 @@ public partial class MainViewModel : ObservableValidator
     private async Task PullUrlInfo()
     {
         VideoList.Clear();
-        _video = null;
-        _playlist = null;
         
         if (MyYoutubeNowService.IsVideo(Url))
         {
-            _video = await _myn.GetVideoInfoAsync(Url);
-            VideoList.Add(new VideoViewModel(_video) 
+            IVideo video = await _myn.GetVideoInfoAsync(Url);
+            _urlInfo = new VideoUrlInfo(video);
+
+            bool exists = VideoExists(video);
+            VideoList.Add(new VideoViewModel(video)
             {
-                Selected = !File.Exists(Path.Combine(OutputDir, $"{_video.Title.RemoveInvalidChars()}.mp3"))
+                Selected = !exists
             });
         }
         else if(MyYoutubeNowService.IsPlaylist(Url)) 
         {
-            _playlist = await _myn.GetPlaylistInfoAsync(Url);
+            IPlaylist playlist = await _myn.GetPlaylistInfoAsync(Url);
+            _urlInfo = new PlaylistUrlInfo(playlist);
 
             await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
             {
+                bool exists = VideoExists(vid);
                 VideoList.Add(new VideoViewModel(vid) 
                 {
-                    Selected = !File.Exists(Path.Combine(Path.Combine(OutputDir, _playlist.Title.RemoveInvalidChars()), $"{vid.Title.RemoveInvalidChars()}.mp3"))
+                    Selected = !exists,
                 });
             }
         }
@@ -76,20 +81,38 @@ public partial class MainViewModel : ObservableValidator
     [RelayCommand]
     public async Task Download()
     {
-        if(_video != null)
+        if (_urlInfo is VideoUrlInfo vInfo)
         {
             _myn.OutputDir = OutputDir;
-            await _myn.ConvertVideo(_video);
+
+            await _myn.ConvertVideo(vInfo.Video, VideoList.First().Progress);
         }
-        else if(_playlist != null)
+        else if (_urlInfo is PlaylistUrlInfo pInfo)
         {
             _myn.OutputDir = OutputDir;
-            var filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id));
-            await _myn.ConvertPlaylist(_playlist, filters);
+            var options = new PlaylistOptions() { Filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id)) };
+
+            IPlaylistProgress plProg = new Dictionary<VideoId, IVideoProgress>();
+
+            await _myn.ConvertPlaylist(pInfo.Playlist, options, plProg);
         }
         else
         {
             throw new ArgumentException("No playlist or video");
         }
+    }
+
+    private bool VideoExists(IVideo video)
+    {
+        if (_urlInfo is VideoUrlInfo)
+        {
+            return File.Exists(Path.Combine(OutputDir, $"{video.Title.RemoveInvalidChars()}.mp3"));
+        }
+        else if (_urlInfo is PlaylistUrlInfo pInfo)
+        {
+            return File.Exists(Path.Combine(Path.Combine(OutputDir, pInfo.Playlist.Title.RemoveInvalidChars()), $"{video.Title.RemoveInvalidChars()}.mp3"));
+        }
+
+        return false;
     }
 }

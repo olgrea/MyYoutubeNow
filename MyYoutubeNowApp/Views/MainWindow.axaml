@@ -29,7 +29,11 @@
 				<ListBox.ItemTemplate>
 					<DataTemplate>
 						<DockPanel>
-							<CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="10,0"/>
+							<CheckBox IsChecked="{Binding Selected}" />
+							<DockPanel VerticalAlignment="Center" Margin="10,0">
+								<ProgressBar Classes="circular" Value="{Binding Progress.TotalProgress}" VerticalAlignment="Center" IsVisible="{Binding !Downloaded}"/>
+								<TextBlock Text="✔️" TextAlignment="Right" IsVisible="{Binding Downloaded}"/>
+							</DockPanel>
 							<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail.Url}" Height="64" Width="64" Margin="10,0"/>
 							<Button Content="{Binding Title}"  Click="GoToUrl"
 									VerticalAlignment="Center" Margin="10,0" Background="Transparent"/>
