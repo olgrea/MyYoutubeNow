@@ -13,15 +13,20 @@ using Instances;
 using NLog;
 using MyYoutubeNow.Progress;
 
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Tests")] 
+
 namespace MyYoutubeNow.Converters
 {
-    class FFmpegWrapper
+    internal class FFmpegWrapper
     {
         private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
+        internal const string FFmpegExeName = "ffmpeg.exe";
         private string _binaryFolder;
         ILogger _logger;
 
-        private string _exePath => Path.Combine(_binaryFolder, "ffmpeg.exe");
+        private string _exePath => Path.Combine(_binaryFolder, FFmpegExeName);
 
         private string _tempPath;
         private string TempPath
@@ -30,7 +35,7 @@ namespace MyYoutubeNow.Converters
             {
                 if (string.IsNullOrEmpty(_tempPath))
                 {
-                    _tempPath = Path.GetTempPath();
+                    _tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                     Directory.CreateDirectory(_tempPath);
                 }
 
@@ -284,7 +289,7 @@ namespace MyYoutubeNow.Converters
 
             foreach (string file in Directory.EnumerateFiles(extractedDir, "*.exe", SearchOption.AllDirectories))
             {
-                File.Copy(file, Path.Combine(_binaryFolder, Path.GetFileName(file)));
+                File.Copy(file, Path.Combine(_binaryFolder, Path.GetFileName(file)), overwrite: true);
             }
 
             if (File.Exists(_exePath))
