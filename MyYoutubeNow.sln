@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyYoutubeNow", "src\MyYoutubeNow.csproj", "{907308A8-6880-4F75-A9EB-4314BFC5BE57}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyYoutubeNow", "src\MyYoutubeNow.csproj", "{907308A8-6880-4F75-A9EB-4314BFC5BE57}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLI", "CLI\CLI.csproj", "{1FF728C1-14A0-49DE-8ACC-77C46B0F7BD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CLI", "CLI\CLI.csproj", "{1FF728C1-14A0-49DE-8ACC-77C46B0F7BD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{6895A8D4-041D-4ACF-91E0-F750EC23600E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{1FF728C1-14A0-49DE-8ACC-77C46B0F7BD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1FF728C1-14A0-49DE-8ACC-77C46B0F7BD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1FF728C1-14A0-49DE-8ACC-77C46B0F7BD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6895A8D4-041D-4ACF-91E0-F750EC23600E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6895A8D4-041D-4ACF-91E0-F750EC23600E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6895A8D4-041D-4ACF-91E0-F750EC23600E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6895A8D4-041D-4ACF-91E0-F750EC23600E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
