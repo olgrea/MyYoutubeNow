@@ -17,9 +17,9 @@ namespace Tests
         const string PlaylistUrlFormat = "https://www.youtube.com/playlist?list={0}";
 
         const string ValidVideoId = "atBi_MfT3LE";
-        const string PrivatePlaylistId = "PL1qgThHfu0PaX44brExT3vTdwCQAm334s";
+        const string PrivatePlaylistId = "PL1qgThHfu0PYFdfBdyJyJFkILyk3Pkh9_";
         const string UnlistedPlaylistId = "PL1qgThHfu0Pbsd7VgxBJWTWI0pAD0basw";
-        const string PublicPlaylistId = "PL1qgThHfu0PZ2lXXOJLLkYaCvxw6RUsPw";
+        const string PublicPlaylistId = "PL1qgThHfu0PaX44brExT3vTdwCQAm334s";
         const string FFmpegExeName = FFmpegWrapper.FFmpegExeName;
 
         MyYoutubeNowService _myns;
@@ -45,8 +45,8 @@ namespace Tests
         {
             string invalidUrl1 = "https://www.youtube.com/watch?v=ssssssssss";
             string invalidUrl2 = "dqasdfawq";
-            Assert.ThrowsAsync<PlaylistUnavailableException>(() =>  _myns.GetVideoInfoAsync(invalidUrl1));
-            Assert.ThrowsAsync<PlaylistUnavailableException>(() =>  _myns.GetVideoInfoAsync(invalidUrl2));
+            Assert.ThrowsAsync<ArgumentException>(() =>  _myns.GetVideoInfoAsync(invalidUrl1));
+            Assert.ThrowsAsync<ArgumentException>(() =>  _myns.GetVideoInfoAsync(invalidUrl2));
         }
 
         [Test]
@@ -106,6 +106,34 @@ namespace Tests
             await _myns.ConvertVideo(url);
 
             //TODO : add a way to specify output folder
+            string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
+            Assert.That(File.Exists(mp3FilePath));
+        }
+
+        [Test]
+        public async Task ConvertPlaylist_ValidUrl_DownloadsAndConvertsAllVideosInIt()
+        {
+            string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
+
+            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
+            IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
+
+            await _myns.ConvertPlaylist(url);
+
+            string mp3DirPath = info.Title.RemoveInvalidChars();
+            Assert.That(Directory.Exists(mp3DirPath));
+        }
+
+        [Test]
+        public async Task ConvertPlaylist_ValidUrl_Concatenate_DownloadsAndConvertsAllVideosInItToASingleFile()
+        {
+            string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
+
+            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
+            IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
+
+            await _myns.ConvertPlaylist(url, concatenate: true);
+
             string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
         }
