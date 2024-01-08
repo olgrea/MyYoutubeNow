@@ -5,11 +5,23 @@ using System;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Playlists;
 using YoutubeExplode.Exceptions;
+using System.IO;
+using MyYoutubeNow.Converters;
+using MyYoutubeNow.Utils;
 
 namespace Tests
 {
     public class MyYoutubeNowTests
     {
+        const string VideoUrlFormat = "https://www.youtube.com/watch?v={0}";
+        const string PlaylistUrlFormat = "https://www.youtube.com/playlist?list={0}";
+
+        const string ValidVideoId = "atBi_MfT3LE";
+        const string PrivatePlaylistId = "PL1qgThHfu0PaX44brExT3vTdwCQAm334s";
+        const string UnlistedPlaylistId = "PL1qgThHfu0Pbsd7VgxBJWTWI0pAD0basw";
+        const string PublicPlaylistId = "PL1qgThHfu0PZ2lXXOJLLkYaCvxw6RUsPw";
+        const string FFmpegExeName = FFmpegWrapper.FFmpegExeName;
+
         MyYoutubeNowService _myns;
 
         [SetUp] 
@@ -21,12 +33,11 @@ namespace Tests
         [Test]
         public async Task GetVideoInfoAsync_ValidUrl_RetrievesIt()
         {
-            string id = "atBi_MfT3LE";
-            string url = $"https://www.youtube.com/watch?v={id}";
+            string url = string.Format(VideoUrlFormat, ValidVideoId);
             IVideo vid = await _myns.GetVideoInfoAsync(url);
 
             Assert.That(vid, Is.Not.Null);
-            Assert.That(vid.Id.ToString(), Is.EqualTo(id));
+            Assert.That(vid.Id.ToString(), Is.EqualTo(ValidVideoId));
         }
 
         [Test]
@@ -50,30 +61,53 @@ namespace Tests
         [Test]
         public void GetPlaylistInfoAsync_ValidUrl_PrivatePlaylist_Throws()
         {
-            string invalidUrl = "https://www.youtube.com/playlist?list=PL1qgThHfu0PaX44brExT3vTdwCQAm334s";
+            string invalidUrl = string.Format(PlaylistUrlFormat, PrivatePlaylistId);
             Assert.ThrowsAsync<PlaylistUnavailableException>(() => _myns.GetPlaylistInfoAsync(invalidUrl));
         }
 
         [Test]
         public async Task GetPlaylistInfoAsync_ValidUrl_UnlistedPlaylist_RetrievesIt()
         {
-            string id = "PL1qgThHfu0Pbsd7VgxBJWTWI0pAD0basw";
-            string url = $"https://www.youtube.com/playlist?list={id}";
+            string url = string.Format(PlaylistUrlFormat, UnlistedPlaylistId);
             IPlaylist pl = await _myns.GetPlaylistInfoAsync(url);
 
             Assert.That(pl, Is.Not.Null);
-            Assert.That(pl.Id.ToString(), Is.EqualTo(id));
+            Assert.That(pl.Id.ToString(), Is.EqualTo(UnlistedPlaylistId));
         }
 
         [Test]
         public async Task GetPlaylistInfoAsync_ValidUrl_PublicPlaylist_RetrievesIt()
         {
-            string id = "PL1qgThHfu0PZ2lXXOJLLkYaCvxw6RUsPw";
-            string url = $"https://www.youtube.com/playlist?list={id}";
+            string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
             IPlaylist pl = await _myns.GetPlaylistInfoAsync(url);
 
             Assert.That(pl, Is.Not.Null);
-            Assert.That(pl.Id.ToString(), Is.EqualTo(id));
+            Assert.That(pl.Id.ToString(), Is.EqualTo(PublicPlaylistId));
+        }
+
+        [Test]
+        public async Task ConvertVideo_FFmpegNotInstalled_DownloadsIt()
+        {
+            if (File.Exists(FFmpegExeName))
+                File.Delete(FFmpegExeName);
+
+            string url = string.Format(VideoUrlFormat, ValidVideoId);
+            await _myns.ConvertVideo(url);
+
+            Assert.That(File.Exists(FFmpegExeName));
+        }
+
+        [Test]
+        public async Task ConvertVideo_ValidUrl_DownloadsAndConvertsIt()
+        {
+            string url = string.Format(VideoUrlFormat, ValidVideoId);
+            IVideo info = await _myns.GetVideoInfoAsync(url);
+
+            await _myns.ConvertVideo(url);
+
+            //TODO : add a way to specify output folder
+            string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
+            Assert.That(File.Exists(mp3FilePath));
         }
     }
 }

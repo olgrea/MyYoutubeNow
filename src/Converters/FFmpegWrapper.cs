@@ -11,13 +11,17 @@ using MyYoutubeNow.Utils;
 using FFMpegCore;
 using Instances;
 using NLog;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Tests")] 
 
 namespace MyYoutubeNow.Converters
 {
-    class FFmpegWrapper
+    internal class FFmpegWrapper
     {
         private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
-        private readonly string _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
+        internal const string FFmpegExeName = "ffmpeg.exe";
+        private readonly string _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FFmpegExeName);
         private string _baseDirectory;
         ILogger _logger;
 

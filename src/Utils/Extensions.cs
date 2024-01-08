@@ -27,7 +27,7 @@ namespace MyYoutubeNow.Utils
             return string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
         }
         
-        public static async Task DownloadAsync(this HttpClient httpClient, string url, string targetFilePath, long totalSize, IProgress<double> progress)
+        public static async Task DownloadAsync(this HttpClient httpClient, string url, string targetFilePath, long totalSize, IProgress<double> progress = null)
         {
             using (HttpResponseMessage response =
                 httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result)
@@ -48,7 +48,7 @@ namespace MyYoutubeNow.Utils
 
                         await fileStream.WriteAsync(buffer, 0, read);
                         totalRead += read;
-                        progress.Report((double) totalRead / totalSize);
+                        progress?.Report((double) totalRead / totalSize);
                     } while (true);
                 }
             }
