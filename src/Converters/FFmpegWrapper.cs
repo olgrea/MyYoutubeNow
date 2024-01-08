@@ -280,7 +280,7 @@ namespace MyYoutubeNow.Converters
 
             foreach (string file in Directory.EnumerateFiles(extractedDir, "*.exe", SearchOption.AllDirectories))
             {
-                File.Copy(file, Path.Combine(_baseDirectory, Path.GetFileName(file)));
+                File.Copy(file, Path.Combine(_baseDirectory, Path.GetFileName(file)), overwrite: true);
             }
 
             if (File.Exists(_exePath))
