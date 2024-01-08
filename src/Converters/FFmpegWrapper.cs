@@ -32,7 +32,7 @@ namespace MyYoutubeNow.Converters
             {
                 if (string.IsNullOrEmpty(_tempPath))
                 {
-                    _tempPath = Path.GetTempPath();
+                    _tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                     Directory.CreateDirectory(_tempPath);
                 }
 
