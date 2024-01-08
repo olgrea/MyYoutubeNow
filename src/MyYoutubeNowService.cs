@@ -38,7 +38,7 @@ namespace MyYoutubeNow
         }
 
 
-        public string OutputDir { get; set; }
+        public string OutputDir { get; set; } = "output";
 
         public LoggingConfiguration LoggingConfig => _loggingConfig;
 

@@ -37,7 +37,7 @@ namespace MyYoutubeNow.Converters
                 _logger.Info($"Conversion {i+1}/{list.Count}");
 
                 IProgress progress = null;
-                tempVideoProgresses.TryGetValue(list[i], out progress);
+                tempVideoProgresses?.TryGetValue(list[i], out progress);
 
                 await ConvertToMp3(list[i].Path, outputDirPath, progress);
             }

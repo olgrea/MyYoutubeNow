@@ -8,6 +8,8 @@ using YoutubeExplode.Exceptions;
 using System.IO;
 using MyYoutubeNow.Converters;
 using MyYoutubeNow.Utils;
+using MyYoutubeNow.Options;
+using System.Collections.Generic;
 
 namespace Tests
 {
@@ -105,8 +107,7 @@ namespace Tests
 
             await _myns.ConvertVideo(url);
 
-            //TODO : add a way to specify output folder
-            string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
+            string mp3FilePath = Path.Combine(_myns.OutputDir, info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
         }
 
@@ -115,13 +116,19 @@ namespace Tests
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
 
-            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
-            IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
+            string dirPath = (await _myns.GetPlaylistInfoAsync(url)).Title.RemoveInvalidChars();
+            HashSet<string> fileNames = new();
+            await foreach (PlaylistVideo vid in _myns.GetPlaylistVideosInfoAsync(url))
+                fileNames.Add(vid.Title.RemoveInvalidChars() + ".mp3");
 
             await _myns.ConvertPlaylist(url);
 
-            string mp3DirPath = info.Title.RemoveInvalidChars();
-            Assert.That(Directory.Exists(mp3DirPath));
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(dirPath));
+                foreach(var file in Directory.EnumerateFiles(dirPath))
+                    Assert.That(fileNames, Contains.Item(Path.GetFileName(file).RemoveInvalidChars()));
+            });
         }
 
         [Test]
@@ -129,10 +136,10 @@ namespace Tests
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
 
-            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
             IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
 
-            await _myns.ConvertPlaylist(url, concatenate: true);
+            var opts = new PlaylistOptions() { Concatenate = true } ;
+            await _myns.ConvertPlaylist(url, opts);
 
             string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
