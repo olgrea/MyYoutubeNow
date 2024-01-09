@@ -88,6 +88,9 @@ namespace MyYoutubeNow.Converters
                     )
                     .NotifyOnProgress(progress =>
                     {
+                        if (double.IsInfinity(progress))
+                            progress = 0.0;
+
                         progressReport?.Report(progress/100d);
                     }, audioStream.Duration)
                     .ProcessAsynchronously();

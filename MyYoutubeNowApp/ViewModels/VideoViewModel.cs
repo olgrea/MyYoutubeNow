@@ -17,7 +17,7 @@ namespace MyYoutubeNowApp.ViewModels
             _url = video.Url;
             _thumbnail = video.Thumbnails.FirstOrDefault();
             _duration = video.Duration;
-            _progress = new();
+            _progress = new(() => Downloaded = true);
         }
 
         [ObservableProperty]

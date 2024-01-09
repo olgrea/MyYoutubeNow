@@ -19,11 +19,13 @@ namespace MyYoutubeNowApp
 
         private double _downloadProgress;
         private double _conversionProgress;
+        Action _onComplete;
 
-        public ProgressViewModel()
+        public ProgressViewModel(Action onComplete)
         {
             DownloadProgress = new ActionProgressReport(OnDownLoadProgressUpdated);
             ConvertProgress = new ActionProgressReport(OnConversionProgressUpdated);
+            _onComplete = onComplete;
         }
 
         [ObservableProperty]
@@ -49,6 +51,8 @@ namespace MyYoutubeNowApp
         {
             // Post on main sync context?
             TotalProgress = Convert.ToInt32(100*(_downloadProgress + _conversionProgress)/2.0);
+            if (TotalProgress >= 100)
+                _onComplete?.Invoke();
         }
     }
 }

@@ -92,7 +92,7 @@ public partial class MainViewModel : ObservableValidator
             _myn.OutputDir = OutputDir;
             var options = new PlaylistOptions() { Filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id)) };
 
-            IPlaylistProgress plProg = new Dictionary<VideoId, IVideoProgress>();
+            IPlaylistProgress plProg = VideoList.ToDictionary(v => v.Id, v => (IVideoProgress)v.Progress);
 
             await _myn.ConvertPlaylist(pInfo.Playlist, options, plProg);
         }
