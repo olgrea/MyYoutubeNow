@@ -10,6 +10,8 @@ using MyYoutubeNow.Converters;
 using MyYoutubeNow.Utils;
 using MyYoutubeNow.Options;
 using System.Collections.Generic;
+using MyYoutubeNow.Progress;
+using System.Linq;
 
 namespace Tests
 {
@@ -112,6 +114,18 @@ namespace Tests
         }
 
         [Test]
+        public async Task ConvertVideo_ProgressIsUpdated()
+        {
+            string url = string.Format(VideoUrlFormat, ValidVideoId);
+
+            VideoProgress progress = new VideoProgress();
+            await _myns.ConvertVideo(url, progress);
+
+            Assert.That(progress.Download, Is.EqualTo(1.0));
+            Assert.That(progress.Conversion, Is.EqualTo(1.0));
+        }
+
+        [Test]
         public async Task ConvertPlaylist_ValidUrl_DownloadsAndConvertsAllVideosInIt()
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
@@ -132,6 +146,28 @@ namespace Tests
         }
 
         [Test]
+        public async Task ConvertPlaylist_ProgressIsUpdated()
+        {
+            string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
+
+            string dirPath = (await _myns.GetPlaylistInfoAsync(url)).Title.RemoveInvalidChars();
+            Dictionary<VideoId, IVideoProgress> progresses = new();
+            await foreach (PlaylistVideo vid in _myns.GetPlaylistVideosInfoAsync(url))
+                progresses.Add(vid.Id, new VideoProgress());
+
+            await _myns.ConvertPlaylist(url, progresses);
+
+            Assert.Multiple(() =>
+            {
+                foreach (VideoProgress progress in progresses.Values.Cast<VideoProgress>())
+                {
+                    Assert.That(progress.Download, Is.EqualTo(1.0));
+                    Assert.That(progress.Conversion, Is.EqualTo(1.0));
+                }
+            });
+        }
+
+        [Test]
         public async Task ConvertPlaylist_ValidUrl_Concatenate_DownloadsAndConvertsAllVideosInItToASingleFile()
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
@@ -143,6 +179,30 @@ namespace Tests
 
             string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
+        }
+
+        class VideoProgress : IVideoProgress
+        {
+            class ValueProgress : IProgress
+            {
+                public double Value { get; set; }
+                public void Report(double value) => Value = value;
+            }
+
+            ValueProgress _downloadProgress;
+            ValueProgress _convertProgress;
+
+            public VideoProgress()
+            {
+                _downloadProgress = new ValueProgress();
+                _convertProgress = new ValueProgress();
+            }
+
+            public double Download => _downloadProgress.Value;
+            public double Conversion => _convertProgress.Value;
+
+            public IProgress DownloadProgress => _downloadProgress;
+            public IProgress ConvertProgress => _convertProgress;
         }
     }
 }

@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using MyYoutubeNow.Progress;
 using MyYoutubeNow.Options;
 using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
+using System.Linq;
 
 namespace MyYoutubeNow
 {
@@ -115,6 +116,30 @@ namespace MyYoutubeNow
 
         public async Task ConvertPlaylist(IPlaylist info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
         {
+            if (playlistOptions.Concatenate)
+            {
+                await DownloadAllThenConvert(info, playlistOptions, playlistProgress);
+                return;
+            }
+            
+            IAsyncEnumerable<PlaylistVideo> videos = _client.GetPlaylistVideosInfoAsync(info.Id);
+
+            var filters = playlistOptions.Filters;
+            await foreach (PlaylistVideo video in videos)
+            {
+                if (filters != null && filters.Any(f => f.ShouldFilter(video)))
+                    continue;
+
+                //_logger.Info($"{i+1}/{videos.Count}");
+                IVideoProgress progress = null;
+                playlistProgress?.TryGetValue(video.Id, out progress);
+
+                await ConvertVideo(video, progress);
+            }
+        }
+
+        async Task DownloadAllThenConvert(IPlaylist info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        {
             IEnumerable<TempVideo> tempVideoPaths = await _client.DownloadPlaylist(info, playlistOptions.Filters, playlistProgress);
 
             Dictionary<TempVideo, IProgress> progressDict = null;
@@ -125,14 +150,7 @@ namespace MyYoutubeNow
                     progressDict.Add(tempVideo, playlistProgress[tempVideo.Id].ConvertProgress);
             }
             
-            if (playlistOptions.Concatenate)
-            {
-                await _converter.ConcatenateMp3s(tempVideoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
-            }
-            else
-            {
-                await _converter.ConvertToMp3(tempVideoPaths, Path.Combine(OutputDir, $"{info.Title.RemoveInvalidChars()}"), progressDict);
-            }
+            await _converter.ConcatenateMp3s(tempVideoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
 
             foreach (var tempVideo in tempVideoPaths)
             {
