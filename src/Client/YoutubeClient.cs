@@ -15,17 +15,18 @@ using MyYoutubeNow.Utils;
 using NLog;
 using MyYoutubeNow.Progress;
 using MyYoutubeNow.Options.Filters;
+using MyYoutubeNow.Converters;
 
 namespace MyYoutubeNow.Client
 {
-    public class Chapter
+    public class Chapter : IVideoSegment
     {
         public string Title { get; }
-        public ulong TimeRangeStartMs { get; }
+        public ulong SegmentStartTimeMs { get; }
         public Chapter(string title, ulong timeRangeStart)
         {
             Title = title;
-            TimeRangeStartMs = timeRangeStart;
+            SegmentStartTimeMs = timeRangeStart;
         }
     }
 

@@ -22,7 +22,7 @@ namespace MyYoutubeNow
     public class MyYoutubeNowService
     {
         YoutubeClient _client;
-        MediaConverter _converter;
+        IMediaConverter _converter;
         IServiceProvider _services;
         LoggingConfiguration _loggingConfig;
 
@@ -32,7 +32,7 @@ namespace MyYoutubeNow
             _services = ConfigureServices();
 
             _client = _services.GetService<YoutubeClient>();
-            _converter = _services.GetService<MediaConverter>();
+            _converter = _services.GetService<IMediaConverter>();
 
             _client.DefaultProgressReporter = _converter.DefaultProgressReport = progressReport;
         }
@@ -85,11 +85,11 @@ namespace MyYoutubeNow
             if (options.Split)
             {
                 var chapters = await _client.GetChaptersAsync(info.Id);
-                await _converter.ConvertToMp3s(videoPath, chapters, OutputDir, videoProgress?.ConvertProgress);
+                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters, OutputDir, videoProgress?.ConvertProgress);
             }
             else
             {
-                await _converter.ConvertToMp3(videoPath, OutputDir, videoProgress?.ConvertProgress);
+                await _converter.ConvertVideoToMp3(videoPath, OutputDir, videoProgress?.ConvertProgress);
             }
             if (File.Exists(videoPath))
                 File.Delete(videoPath);
@@ -140,15 +140,15 @@ namespace MyYoutubeNow
         {
             IEnumerable<TempVideo> tempVideoPaths = await _client.DownloadPlaylist(info, playlistOptions.Filters, playlistProgress);
 
-            Dictionary<TempVideo, IProgress> progressDict = null;
+            Dictionary<string, IProgress> progressDict = null;
             if(playlistProgress != null)
             {
                 progressDict = new();
                 foreach (TempVideo tempVideo in tempVideoPaths)
-                    progressDict.Add(tempVideo, playlistProgress.VideoProgresses[tempVideo.Id].ConvertProgress);
+                    progressDict.Add(tempVideo.Path, playlistProgress.VideoProgresses[tempVideo.Id].ConvertProgress);
             }
             
-            await _converter.ConcatenateMp3s(tempVideoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
+            await _converter.ConvertVideosToSingleMp3(tempVideoPaths.Select(vp => vp.Path), OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
 
             foreach (var tempVideo in tempVideoPaths)
             {
@@ -175,7 +175,7 @@ namespace MyYoutubeNow
             services.AddSingleton(typeof(ILogger), LogManager.GetLogger($"logdebugger"));
             services.AddSingleton<YoutubeExplode.YoutubeClient, YoutubeExplode.YoutubeClient>();
             services.AddSingleton<YoutubeClient, YoutubeClient>();
-            services.AddSingleton<MediaConverter, MediaConverter>();
+            services.AddSingleton<IMediaConverter, FFmpegMediaConverter>();
 
             return services.BuildServiceProvider();
         }
