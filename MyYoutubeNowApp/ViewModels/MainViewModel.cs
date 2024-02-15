@@ -14,7 +14,6 @@ using System.Linq;
 using MyYoutubeNow.Options.Filters;
 using MyYoutubeNow.Options;
 using MyYoutubeNow.Progress;
-using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 
 namespace MyYoutubeNowApp.ViewModels;
 
@@ -23,6 +22,16 @@ public partial class MainViewModel : ObservableValidator
     readonly string DefaultOutputDirPath = AppDomain.CurrentDomain.BaseDirectory;
     private MyYoutubeNowService _myn;
     private UrlInfo? _urlInfo = null;
+
+    class PlaylistProgress : IPlaylistProgress
+    {
+        public PlaylistProgress(IDictionary<VideoId, IVideoProgress> videoProgresses)
+        {
+            VideoProgresses = videoProgresses;
+        }
+
+        public IDictionary<VideoId, IVideoProgress> VideoProgresses { get; } = new Dictionary<VideoId, IVideoProgress>();
+    }
 
 #if DEBUG
     // IDE wants a parameterless constructor to display design preview
@@ -85,14 +94,14 @@ public partial class MainViewModel : ObservableValidator
         {
             _myn.OutputDir = OutputDir;
 
-            await _myn.ConvertVideo(vInfo.Video, VideoList.First().Progress);
+            await _myn.DownloadAndConvertVideo(vInfo.Video, VideoList.First().Progress);
         }
         else if (_urlInfo is PlaylistUrlInfo pInfo)
         {
             _myn.OutputDir = OutputDir;
             var options = new PlaylistOptions() { Filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id)) };
 
-            IPlaylistProgress plProg = VideoList.ToDictionary(v => v.Id, v => (IVideoProgress)v.Progress);
+            IPlaylistProgress plProg = new PlaylistProgress(VideoList.ToDictionary(v => v.Id, v => (IVideoProgress)v.Progress));
 
             await _myn.ConvertPlaylist(pInfo.Playlist, options, plProg);
         }

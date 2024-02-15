@@ -15,7 +15,6 @@ using NLog.Config;
 using System.Collections.Generic;
 using MyYoutubeNow.Progress;
 using MyYoutubeNow.Options;
-using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 using System.Linq;
 
 namespace MyYoutubeNow
@@ -37,7 +36,6 @@ namespace MyYoutubeNow
 
             _client.DefaultProgressReporter = _converter.DefaultProgressReport = progressReport;
         }
-
 
         public string OutputDir { get; set; } = "output";
 
@@ -64,24 +62,24 @@ namespace MyYoutubeNow
             return _client.GetPlaylistVideosInfoAsync(id);
         }
 
-        public async Task ConvertVideo(string url, IVideoProgress videoProgress = null)
+        public async Task DownloadAndConvertVideo(string url, IVideoProgress videoProgress = null)
         {
-            await ConvertVideo(url, new VideoOptions(), videoProgress);
+            await DownloadAndConvertVideo(url, new VideoOptions(), videoProgress);
         }
 
-        public async Task ConvertVideo(string url, IVideoOptions options, IVideoProgress videoProgress = null)
+        public async Task DownloadAndConvertVideo(string url, IVideoOptions options, IVideoProgress videoProgress = null)
         {
             VideoId id = VideoId.Parse(url);
             Video info = await _client.GetVideoInfoAsync(id);
-            await ConvertVideo(info, options, videoProgress);
+            await DownloadAndConvertVideo(info, options, videoProgress);
         }
 
-        public async Task ConvertVideo(IVideo info, IVideoProgress videoProgress = null)
+        public async Task DownloadAndConvertVideo(IVideo info, IVideoProgress videoProgress = null)
         {
-            await ConvertVideo(info, new VideoOptions(), videoProgress);
+            await DownloadAndConvertVideo(info, new VideoOptions(), videoProgress);
         }
 
-        public async Task ConvertVideo(IVideo info, IVideoOptions options, IVideoProgress videoProgress = null)
+        public async Task DownloadAndConvertVideo(IVideo info, IVideoOptions options, IVideoProgress videoProgress = null)
         {
             var videoPath = await _client.DownloadVideo(info, videoProgress?.DownloadProgress);
             if (options.Split)
@@ -97,12 +95,12 @@ namespace MyYoutubeNow
                 File.Delete(videoPath);
         }
 
-        public async Task ConvertPlaylist(string url, IPlaylistProgress playlistProgress = null)
+        public async Task DownloadAndConvertPlaylist(string url, IPlaylistProgress playlistProgress = null)
         {
-            await ConvertPlaylist(url, new PlaylistOptions(), playlistProgress);
+            await DownloadAndConvertPlaylist(url, new PlaylistOptions(), playlistProgress);
         }
 
-        public async Task ConvertPlaylist(string url, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        public async Task DownloadAndConvertPlaylist(string url, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
         {
             PlaylistId id = PlaylistId.Parse(url);
             Playlist info = await _client.GetPlaylistInfoAsync(id);
@@ -134,7 +132,7 @@ namespace MyYoutubeNow
                 IVideoProgress progress = null;
                 playlistProgress?.VideoProgresses.TryGetValue(video.Id, out progress);
 
-                await ConvertVideo(video, progress);
+                await DownloadAndConvertVideo(video, progress);
             }
         }
 

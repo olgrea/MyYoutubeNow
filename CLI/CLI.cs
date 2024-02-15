@@ -49,11 +49,11 @@ namespace MyYoutubeNow
 
             if (MyYoutubeNowService.IsVideo(options.Url))
             {
-                await myn.ConvertVideo(options.Url, new VideoOptions() { Split = options.Split });
+                await myn.DownloadAndConvertVideo(options.Url, new VideoOptions() { Split = options.Split });
             }
             else if(MyYoutubeNowService.IsPlaylist(options.Url))
             {
-                await myn.ConvertPlaylist(options.Url, new PlaylistOptions() { Concatenate = options.Concatenate });
+                await myn.DownloadAndConvertPlaylist(options.Url, new PlaylistOptions() { Concatenate = options.Concatenate });
             }
         }
     }

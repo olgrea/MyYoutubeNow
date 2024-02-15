@@ -96,7 +96,7 @@ namespace Tests
                 File.Delete(FFmpegExeName);
 
             string url = string.Format(VideoUrlFormat, ValidVideoId);
-            await _myns.ConvertVideo(url);
+            await _myns.DownloadAndConvertVideo(url);
 
             Assert.That(File.Exists(FFmpegExeName));
         }
@@ -107,7 +107,7 @@ namespace Tests
             string url = string.Format(VideoUrlFormat, ValidVideoId);
             IVideo info = await _myns.GetVideoInfoAsync(url);
 
-            await _myns.ConvertVideo(url);
+            await _myns.DownloadAndConvertVideo(url);
 
             string mp3FilePath = Path.Combine(_myns.OutputDir, info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
@@ -119,7 +119,7 @@ namespace Tests
             string url = string.Format(VideoUrlFormat, ValidVideoId);
 
             VideoProgress progress = new VideoProgress();
-            await _myns.ConvertVideo(url, progress);
+            await _myns.DownloadAndConvertVideo(url, progress);
 
             Assert.That(progress.Download, Is.EqualTo(1.0));
             Assert.That(progress.Conversion, Is.EqualTo(1.0));
@@ -135,7 +135,7 @@ namespace Tests
             await foreach (PlaylistVideo vid in _myns.GetPlaylistVideosInfoAsync(url))
                 fileNames.Add(vid.Title.RemoveInvalidChars() + ".mp3");
 
-            await _myns.ConvertPlaylist(url);
+            await _myns.DownloadAndConvertPlaylist(url);
 
             Assert.Multiple(() =>
             {
@@ -155,7 +155,7 @@ namespace Tests
             await foreach (PlaylistVideo vid in _myns.GetPlaylistVideosInfoAsync(url))
                 playlistProgress.VideoProgresses.Add(vid.Id, new VideoProgress());
 
-            await _myns.ConvertPlaylist(url, progresses);
+            await _myns.DownloadAndConvertPlaylist(url, playlistProgress);
 
             Assert.Multiple(() =>
             {
@@ -175,7 +175,7 @@ namespace Tests
             IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
 
             var opts = new PlaylistOptions() { Concatenate = true } ;
-            await _myns.ConvertPlaylist(url, opts);
+            await _myns.DownloadAndConvertPlaylist(url, opts);
 
             string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
