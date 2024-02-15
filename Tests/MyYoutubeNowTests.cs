@@ -151,15 +151,15 @@ namespace Tests
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
 
             string dirPath = (await _myns.GetPlaylistInfoAsync(url)).Title.RemoveInvalidChars();
-            Dictionary<VideoId, IVideoProgress> progresses = new();
+            var playlistProgress = new PlaylistProgress();
             await foreach (PlaylistVideo vid in _myns.GetPlaylistVideosInfoAsync(url))
-                progresses.Add(vid.Id, new VideoProgress());
+                playlistProgress.VideoProgresses.Add(vid.Id, new VideoProgress());
 
             await _myns.ConvertPlaylist(url, progresses);
 
             Assert.Multiple(() =>
             {
-                foreach (VideoProgress progress in progresses.Values.Cast<VideoProgress>())
+                foreach (VideoProgress progress in playlistProgress.VideoProgresses.Values.Cast<VideoProgress>())
                 {
                     Assert.That(progress.Download, Is.EqualTo(1.0));
                     Assert.That(progress.Conversion, Is.EqualTo(1.0));

@@ -132,7 +132,7 @@ namespace MyYoutubeNow
 
                 //_logger.Info($"{i+1}/{videos.Count}");
                 IVideoProgress progress = null;
-                playlistProgress?.TryGetValue(video.Id, out progress);
+                playlistProgress?.VideoProgresses.TryGetValue(video.Id, out progress);
 
                 await ConvertVideo(video, progress);
             }
@@ -147,7 +147,7 @@ namespace MyYoutubeNow
             {
                 progressDict = new();
                 foreach (TempVideo tempVideo in tempVideoPaths)
-                    progressDict.Add(tempVideo, playlistProgress[tempVideo.Id].ConvertProgress);
+                    progressDict.Add(tempVideo, playlistProgress.VideoProgresses[tempVideo.Id].ConvertProgress);
             }
             
             await _converter.ConcatenateMp3s(tempVideoPaths, OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);

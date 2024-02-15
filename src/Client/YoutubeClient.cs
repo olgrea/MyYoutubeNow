@@ -15,7 +15,6 @@ using MyYoutubeNow.Utils;
 using NLog;
 using MyYoutubeNow.Progress;
 using MyYoutubeNow.Options.Filters;
-using IPlaylistProgress = System.Collections.Generic.IDictionary<YoutubeExplode.Videos.VideoId, MyYoutubeNow.Progress.IVideoProgress>;
 
 namespace MyYoutubeNow.Client
 {
@@ -117,7 +116,7 @@ namespace MyYoutubeNow.Client
 
                 //_logger.Info($"{i+1}/{videos.Count}");
                 IProgress downloadProgress = null;
-                if (playlistProgress != null && playlistProgress.TryGetValue(video.Id, out IVideoProgress videoProgress))
+                if (playlistProgress != null && playlistProgress.VideoProgresses.TryGetValue(video.Id, out IVideoProgress videoProgress))
                     downloadProgress = videoProgress?.DownloadProgress;
 
                 tempVideoPaths.Add(new TempVideo(video.Id, await DownloadVideo(video, downloadProgress)));
