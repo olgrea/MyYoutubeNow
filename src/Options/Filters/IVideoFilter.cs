@@ -1,9 +1,9 @@
-﻿using YoutubeExplode.Videos;
+﻿using MyYoutubeNow.Client;
 
 namespace MyYoutubeNow.Options.Filters
 {
     public interface IVideoFilter
     {
-        bool ShouldFilter(IVideo video);
+        bool ShouldFilter(IVideoInfo video);
     }
 }

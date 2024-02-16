@@ -2,18 +2,18 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using System.Linq;
+using System.IO;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using MyYoutubeNow;
-using YoutubeExplode.Playlists;
-using YoutubeExplode.Videos;
-using YoutubeExplode.Common;
-using System.IO;
 using MyYoutubeNow.Utils;
-using System.Linq;
 using MyYoutubeNow.Options.Filters;
 using MyYoutubeNow.Options;
 using MyYoutubeNow.Progress;
+using MyYoutubeNow.Client;
 
 namespace MyYoutubeNowApp.ViewModels;
 
@@ -25,12 +25,12 @@ public partial class MainViewModel : ObservableValidator
 
     class PlaylistProgress : IPlaylistProgress
     {
-        public PlaylistProgress(IDictionary<VideoId, IVideoProgress> videoProgresses)
+        public PlaylistProgress(IDictionary<IPlaylistVideoInfo, IVideoProgress> videoProgresses)
         {
             VideoProgresses = videoProgresses;
         }
 
-        public IDictionary<VideoId, IVideoProgress> VideoProgresses { get; } = new Dictionary<VideoId, IVideoProgress>();
+        public IDictionary<IPlaylistVideoInfo, IVideoProgress> VideoProgresses { get; } = new Dictionary<IPlaylistVideoInfo, IVideoProgress>();
     }
 
 #if DEBUG
@@ -56,9 +56,9 @@ public partial class MainViewModel : ObservableValidator
     {
         VideoList.Clear();
         
-        if (MyYoutubeNowService.IsVideo(Url))
+        if (_myn.IsVideo(Url))
         {
-            IVideo video = await _myn.GetVideoInfoAsync(Url);
+            IVideoInfo video = await _myn.GetVideoInfoAsync(Url);
             _urlInfo = new VideoUrlInfo(video);
 
             bool exists = VideoExists(video);
@@ -67,12 +67,12 @@ public partial class MainViewModel : ObservableValidator
                 Selected = !exists
             });
         }
-        else if(MyYoutubeNowService.IsPlaylist(Url)) 
+        else if(_myn.IsPlaylist(Url)) 
         {
-            IPlaylist playlist = await _myn.GetPlaylistInfoAsync(Url);
+            IPlaylistInfo playlist = await _myn.GetPlaylistInfoAsync(Url);
             _urlInfo = new PlaylistUrlInfo(playlist);
 
-            await foreach(IVideo vid in _myn.GetPlaylistVideosInfoAsync(Url))
+            await foreach(IPlaylistVideoInfo vid in _myn.GetPlaylistVideosInfoAsync(Url))
             {
                 bool exists = VideoExists(vid);
                 VideoList.Add(new VideoViewModel(vid) 
@@ -99,9 +99,9 @@ public partial class MainViewModel : ObservableValidator
         else if (_urlInfo is PlaylistUrlInfo pInfo)
         {
             _myn.OutputDir = OutputDir;
-            var options = new PlaylistOptions() { Filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.Id)) };
+            var options = new PlaylistOptions() { Filters = VideoList.Where(v => !v.Selected).Select(v => new VideoIdFilter(v.VideoInfo)) };
 
-            IPlaylistProgress plProg = new PlaylistProgress(VideoList.ToDictionary(v => v.Id, v => (IVideoProgress)v.Progress));
+            IPlaylistProgress plProg = new PlaylistProgress(VideoList.ToDictionary(v => (IPlaylistVideoInfo)v.VideoInfo, v => (IVideoProgress)v.Progress));
 
             await _myn.ConvertPlaylist(pInfo.Playlist, options, plProg);
         }
@@ -111,7 +111,7 @@ public partial class MainViewModel : ObservableValidator
         }
     }
 
-    private bool VideoExists(IVideo video)
+    private bool VideoExists(IVideoInfo video)
     {
         if (_urlInfo is VideoUrlInfo)
         {

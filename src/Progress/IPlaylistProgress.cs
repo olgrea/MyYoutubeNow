@@ -1,15 +1,15 @@
 ﻿using System.Collections.Generic;
-using YoutubeExplode.Videos;
+using MyYoutubeNow.Client;
 
 namespace MyYoutubeNow.Progress
 {
     public interface IPlaylistProgress
     {
-        IDictionary<VideoId, IVideoProgress> VideoProgresses { get; }
+        IDictionary<IPlaylistVideoInfo, IVideoProgress> VideoProgresses { get; }
     }
 
     internal class PlaylistProgress : IPlaylistProgress
     {
-        public IDictionary<VideoId, IVideoProgress> VideoProgresses { get; } = new Dictionary<VideoId, IVideoProgress>();
+        public IDictionary<IPlaylistVideoInfo, IVideoProgress> VideoProgresses { get; } = new Dictionary<IPlaylistVideoInfo, IVideoProgress>();
     }
 }

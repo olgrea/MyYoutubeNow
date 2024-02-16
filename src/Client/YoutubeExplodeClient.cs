@@ -7,32 +7,91 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
+using MyYoutubeNow.Converters;
+using MyYoutubeNow.Options.Filters;
+using MyYoutubeNow.Progress;
+using MyYoutubeNow.Utils;
+using NLog;
 using YoutubeExplode.Playlists;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
-using AngleSharp.Html.Dom;
-using MyYoutubeNow.Utils;
-using NLog;
-using MyYoutubeNow.Progress;
-using MyYoutubeNow.Options.Filters;
-using MyYoutubeNow.Converters;
 
 namespace MyYoutubeNow.Client
 {
-    public class Chapter : IVideoSegment
+    public class VideoSegment : IVideoSegment
     {
         public string Title { get; }
         public ulong SegmentStartTimeMs { get; }
-        public Chapter(string title, ulong timeRangeStart)
+        public VideoSegment(string title, ulong timeRangeStart)
         {
             Title = title;
             SegmentStartTimeMs = timeRangeStart;
         }
+
+        public VideoSegment(Chapter chapter)
+        {
+            Title = chapter.Title;
+            SegmentStartTimeMs = chapter.SegmentStartTimeMs;
+        }
     }
 
-    internal record TempVideo(VideoId Id, string Path);
+    abstract class VideoBase
+    {
+        protected IVideo _video;
 
-    public class YoutubeClient
+        protected VideoBase(IVideo video)
+        {
+            _video = video;
+        }
+
+        public string Id => _video.Id;
+        public string Title => _video.Title;
+        public TimeSpan? Duration => _video.Duration;
+        public string ThumbnailUrl => _video.Thumbnails.FirstOrDefault()?.Url;
+
+        public override int GetHashCode() => Id.GetHashCode();
+        public override bool Equals(object obj) => obj is VideoBase vb && vb.Id.Equals(Id);
+    }
+
+    class Video : VideoBase, IVideoInfo
+    {
+        public Video(YoutubeExplode.Videos.Video video) : base(video) {}
+
+        public string Description => (_video as YoutubeExplode.Videos.Video).Description;
+        public static implicit operator Video(YoutubeExplode.Videos.Video v) => new Video(v);
+    }
+
+    class PlaylistVideo : VideoBase, IPlaylistVideoInfo
+    {
+        public PlaylistVideo(YoutubeExplode.Playlists.PlaylistVideo video) : base(video) {}
+
+        public string PlaylistId => (_video as YoutubeExplode.Playlists.PlaylistVideo).PlaylistId;
+        public static implicit operator PlaylistVideo(YoutubeExplode.Playlists.PlaylistVideo v) => new PlaylistVideo(v);
+    }
+
+    class Playlist : IPlaylistInfo
+    {
+        YoutubeExplode.Playlists.Playlist _playlist;
+
+        public Playlist(YoutubeExplode.Playlists.Playlist pl)
+        {
+            _playlist = pl;
+        }
+
+        public string Id => _playlist.Id;
+        public string Title => _playlist.Title;
+        public static implicit operator Playlist(YoutubeExplode.Playlists.Playlist pl) => new Playlist(pl);
+        public override int GetHashCode() => Id.GetHashCode();
+        public override bool Equals(object obj) => obj is Playlist info && info.Id.Equals(Id);
+    }
+
+    public class PlaylistUnavailableException : Exception
+    {
+        public PlaylistUnavailableException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    internal class YoutubeExplodeClient : IYoutubeClient
     {
         private YoutubeExplode.YoutubeClient _client;
         private ILogger _logger;
@@ -50,36 +109,55 @@ namespace MyYoutubeNow.Client
             }
         }
         
-        public YoutubeClient(YoutubeExplode.YoutubeClient client, ILogger logger)
+        public YoutubeExplodeClient(YoutubeExplode.YoutubeClient client, ILogger logger)
         {
             _client = client;
             _logger = logger;
         }
 
-        public IProgress DefaultProgressReporter { get; set; }
+        public IProgress DefaultProgressReport { get; set; }
 
-        public async Task<Video> GetVideoInfoAsync(VideoId id)
+        public bool IsVideo(string url) => VideoId.TryParse(url) != null;
+
+        public bool IsPlaylist(string url) => PlaylistId.TryParse(url) != null;
+
+        public async Task<IVideoInfo> GetVideoInfoAsync(string url)
         {
-            return await _client.Videos.GetAsync(id);
+            VideoId id = VideoId.Parse(url);
+            return (Video)await _client.Videos.GetAsync(id);
         }
         
-        public async Task<Playlist> GetPlaylistInfoAsync(PlaylistId id)
+        public async Task<IPlaylistInfo> GetPlaylistInfoAsync(string url)
         {
-            return await _client.Playlists.GetAsync(id);
+            PlaylistId id = PlaylistId.Parse(url);
+            try
+            {
+                return (Playlist)await _client.Playlists.GetAsync(id);
+            }
+            catch(YoutubeExplode.Exceptions.PlaylistUnavailableException ex)
+            {
+                throw new PlaylistUnavailableException(ex.Message, ex);
+            }
         }
 
-        public IAsyncEnumerable<PlaylistVideo> GetPlaylistVideosInfoAsync(PlaylistId id)
+        public async IAsyncEnumerable<IPlaylistVideoInfo> GetPlaylistVideosInfoAsync(string url)
         {
-            return _client.Playlists.GetVideosAsync(id);
+            PlaylistId id = PlaylistId.Parse(url);
+
+            await foreach (YoutubeExplode.Playlists.PlaylistVideo vid in _client.Playlists.GetVideosAsync(id).ConfigureAwait(false))
+            {
+                yield return (PlaylistVideo)vid;
+            }
         }
 
-        public async Task<string> DownloadVideo(VideoId id, IProgress progress = null)
+        public async Task<string> DownloadVideo(string url, IProgress progress = null)
         {
+            var id = VideoId.Parse(url);
             var videoInfo = await _client.Videos.GetAsync(id);
-            return await DownloadVideo(videoInfo, progress);
+            return await DownloadVideo((Video)videoInfo, progress);
         }
 
-        public async Task<string> DownloadVideo(IVideo videoInfo, IProgress progress = null)
+        public async Task<string> DownloadVideo(IVideoInfo videoInfo, IProgress progress = null)
         {
             VideoId id = videoInfo.Id;
             StreamManifest manifest = await _client.Videos.Streams.GetManifestAsync(id);
@@ -97,19 +175,19 @@ namespace MyYoutubeNow.Client
             
             var videoPath = Path.Combine(tempDir, $"{videoInfo.Title.RemoveInvalidChars()}.{stream.Container.Name}");
 
-            progress ??= DefaultProgressReporter;
+            progress ??= DefaultProgressReport;
             await _client.Videos.Streams.DownloadAsync(stream, videoPath, progress);
             _logger.Info("Completed");
             return videoPath;
         }
 
-        internal async Task<IEnumerable<TempVideo>> DownloadPlaylist(IPlaylist info, IEnumerable<IVideoFilter> filters = null, IPlaylistProgress playlistProgress = null)
+        public async Task<IEnumerable<DownloadedVideo>> DownloadPlaylist(IPlaylistInfo info, IEnumerable<IVideoFilter> filters = null, IPlaylistProgress playlistProgress = null)
         {
-            IAsyncEnumerable<PlaylistVideo> videos = _client.Playlists.GetVideosAsync(info.Id);
+            IAsyncEnumerable<YoutubeExplode.Playlists.PlaylistVideo> videos = _client.Playlists.GetVideosAsync(info.Id);
         
             // info ??= await _client.Playlists.GetAsync(id);
             //_logger.Info($"{videos.Count()} videos found in playlist {info.Title}");
-            var tempVideoPaths = new List<TempVideo>();
+            var tempVideoPaths = new List<DownloadedVideo>();
             await foreach (PlaylistVideo video in videos)
             {
                 if (filters != null && filters.Any(f => f.ShouldFilter(video)))
@@ -117,27 +195,27 @@ namespace MyYoutubeNow.Client
 
                 //_logger.Info($"{i+1}/{videos.Count}");
                 IProgress downloadProgress = null;
-                if (playlistProgress != null && playlistProgress.VideoProgresses.TryGetValue(video.Id, out IVideoProgress videoProgress))
+                if (playlistProgress != null && playlistProgress.VideoProgresses.TryGetValue(video, out IVideoProgress videoProgress))
                     downloadProgress = videoProgress?.DownloadProgress;
 
-                tempVideoPaths.Add(new TempVideo(video.Id, await DownloadVideo(video, downloadProgress)));
+                tempVideoPaths.Add(new DownloadedVideo(video, await DownloadVideo(video, downloadProgress)));
             }
 
             return tempVideoPaths;
         }
         
-        internal async Task<List<Chapter>> GetChaptersAsync(VideoId videoId)
+        public async Task<IEnumerable<Chapter>> GetChaptersAsync(IVideoInfo video)
         {
             try
             {
-                var watchPageDoc = await GetHtmlWatchPage(videoId);
+                var watchPageDoc = await GetHtmlWatchPage(video.Id);
                 return TryGetChapters(watchPageDoc);
             }
             catch { }
 
             try
             {
-                return await TryGetChaptersFromDescription(videoId);
+                return await GetChaptersFromDescription(video.Id);
             }
             catch (Exception ex)
             {
@@ -149,7 +227,7 @@ namespace MyYoutubeNow.Client
             //TODO : try parse chapters comments
         }
 
-        private async Task<List<Chapter>> TryGetChaptersFromDescription(VideoId id)
+        private async Task<List<Chapter>> GetChaptersFromDescription(VideoId id)
         {
             Video videoInfo = await _client.Videos.GetAsync(id);
             var desc = videoInfo.Description;

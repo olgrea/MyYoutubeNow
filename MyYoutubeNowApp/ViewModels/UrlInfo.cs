@@ -1,5 +1,4 @@
-﻿using YoutubeExplode.Playlists;
-using YoutubeExplode.Videos;
+﻿using MyYoutubeNow.Client;
 
 namespace MyYoutubeNowApp.ViewModels
 {
@@ -7,21 +6,21 @@ namespace MyYoutubeNowApp.ViewModels
 
     internal class VideoUrlInfo : UrlInfo
     {
-        public VideoUrlInfo(IVideo video)
+        public VideoUrlInfo(IVideoInfo video)
         {
             Video = video;
         }
 
-        public IVideo Video { get; init; }
+        public IVideoInfo Video { get; init; }
     }
 
     internal class PlaylistUrlInfo : UrlInfo
     {
-        public PlaylistUrlInfo(IPlaylist playlist)
+        public PlaylistUrlInfo(IPlaylistInfo playlist)
         {
             Playlist = playlist;
         }
 
-        public IPlaylist Playlist { get; init; }
+        public IPlaylistInfo Playlist { get; init; }
     }
 }

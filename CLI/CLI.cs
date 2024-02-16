@@ -47,11 +47,11 @@ namespace MyYoutubeNow
             myn.LoggingConfig.AddRule(LogLevel.Info, LogLevel.Fatal, target);
             myn.LoggingConfig.Apply();
 
-            if (MyYoutubeNowService.IsVideo(options.Url))
+            if (myn.IsVideo(options.Url))
             {
                 await myn.DownloadAndConvertVideo(options.Url, new VideoOptions() { Split = options.Split });
             }
-            else if(MyYoutubeNowService.IsPlaylist(options.Url))
+            else if(myn.IsPlaylist(options.Url))
             {
                 await myn.DownloadAndConvertPlaylist(options.Url, new PlaylistOptions() { Concatenate = options.Concatenate });
             }

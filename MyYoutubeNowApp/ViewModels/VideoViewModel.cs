@@ -1,24 +1,24 @@
 ﻿using System;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
-using YoutubeExplode.Common;
-using YoutubeExplode.Videos;
+using MyYoutubeNow.Client;
 
 namespace MyYoutubeNowApp.ViewModels
 {
     public partial class VideoViewModel : ObservableObject
     {
-        IVideo _video;
+        IVideoInfo _video;
 
-        public VideoViewModel(IVideo video)
+        public VideoViewModel(IVideoInfo video)
         {
             _video = video;  
             _title = video.Title;
             _url = video.Url;
-            _thumbnail = video.Thumbnails.FirstOrDefault();
+            _thumbnail = video.ThumbnailUrl;
             _duration = video.Duration;
             _progress = new(() => Downloaded = true);
         }
+
+        internal IVideoInfo VideoInfo => _video;
 
         [ObservableProperty]
         private bool _selected;
@@ -29,7 +29,7 @@ namespace MyYoutubeNowApp.ViewModels
         [ObservableProperty]
         private ProgressViewModel _progress;
 
-        public VideoId Id => _video.Id;
+        public string Id => _video.Id;
 
         [ObservableProperty]
         private string _url;
@@ -41,6 +41,6 @@ namespace MyYoutubeNowApp.ViewModels
         private TimeSpan? _duration;
 
         [ObservableProperty]
-        private Thumbnail? _thumbnail;
+        private string? _thumbnail;
     }
 }

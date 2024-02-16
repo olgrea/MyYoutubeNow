@@ -1,19 +1,19 @@
-﻿using YoutubeExplode.Videos;
+﻿using MyYoutubeNow.Client;
 
 namespace MyYoutubeNow.Options.Filters
 {
     public class VideoIdFilter : IVideoFilter
     {
-        public VideoIdFilter(VideoId videoId)
+        public VideoIdFilter(IVideoInfo videoId)
         {
-            VideoId = videoId;
+            VideoInfo = videoId;
         }
 
-        public VideoId VideoId { get; init; }
+        public IVideoInfo VideoInfo { get; init; }
 
-        public bool ShouldFilter(IVideo video)
+        public bool ShouldFilter(IVideoInfo video)
         {
-            return VideoId == video.Id;
+            return VideoInfo.Id == video.Id;
         }
     }
 }
