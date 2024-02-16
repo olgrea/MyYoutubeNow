@@ -5,87 +5,150 @@ using MyYoutubeNow.Converters;
 using MyYoutubeNow.Client;
 using MyYoutubeNow.Utils;
 
-using YoutubeExplode.Videos;
-using YoutubeExplode.Playlists;
 using NLog;
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using NLog.Layouts;
 using NLog.Config;
+using System.Collections.Generic;
+using MyYoutubeNow.Progress;
+using MyYoutubeNow.Options;
+using System.Linq;
 
 namespace MyYoutubeNow
 {
     public class MyYoutubeNowService
     {
-        YoutubeClient _client;
-        MediaConverter _converter;
+        IYoutubeClient _client;
+        IMediaConverter _converter;
         IServiceProvider _services;
         LoggingConfiguration _loggingConfig;
 
-        public MyYoutubeNowService(IProgressReport progressReport = null)
+        public MyYoutubeNowService(IProgress progressReport = null)
         {
             _loggingConfig = ConfigureLogger();
             _services = ConfigureServices();
 
-            _client = _services.GetService<YoutubeClient>();
-            _converter = _services.GetService<MediaConverter>();
+            _client = _services.GetService<IYoutubeClient>();
+            _converter = _services.GetService<IMediaConverter>();
 
-            _client.ProgressReport = _converter.ProgressReport = progressReport;
+            _client.DefaultProgressReport = _converter.DefaultProgressReport = progressReport;
         }
+
+        public string OutputDir { get; set; } = "output";
 
         public LoggingConfiguration LoggingConfig => _loggingConfig;
 
-        static public bool IsVideo(string url) => VideoId.TryParse(url) != null;
-        static public bool IsPlaylist(string url) => PlaylistId.TryParse(url) != null;
+        public bool IsVideo(string url) => _client.IsVideo(url);
+        public bool IsPlaylist(string url) => _client.IsPlaylist(url);
 
-        public async Task<Video> GetVideoInfoAsync(string url)
+        public async Task<IVideoInfo> GetVideoInfoAsync(string url)
         {
-            VideoId id = VideoId.Parse(url);
-            return await _client.GetVideoInfoAsync(id);
+            return await _client.GetVideoInfoAsync(url);
         }
 
-        public async Task<Playlist> GetPlaylistInfoAsync(string url)
+        public async Task<IPlaylistInfo> GetPlaylistInfoAsync(string url)
         {
-            PlaylistId id = PlaylistId.Parse(url);
-            return await _client.GetPlaylistInfoAsync(id);
+            return await _client.GetPlaylistInfoAsync(url);
         }
 
-        public async Task ConvertVideo(string url, bool split = false)
+        public IAsyncEnumerable<IPlaylistVideoInfo> GetPlaylistVideosInfoAsync(string url)
         {
-            VideoId id = VideoId.Parse(url);
-            Video info = await _client.GetVideoInfoAsync(id);
-            var videoPath = await _client.DownloadVideo(id, info);
-            if (split)
+            return _client.GetPlaylistVideosInfoAsync(url);
+        }
+
+        public async Task DownloadAndConvertVideo(string url, IVideoProgress videoProgress = null)
+        {
+            await DownloadAndConvertVideo(url, new VideoOptions(), videoProgress);
+        }
+
+        public async Task DownloadAndConvertVideo(string url, IVideoOptions options, IVideoProgress videoProgress = null)
+        {
+            IVideoInfo info = await _client.GetVideoInfoAsync(url);
+            await DownloadAndConvertVideo(info, options, videoProgress);
+        }
+
+        public async Task DownloadAndConvertVideo(IVideoInfo info, IVideoProgress videoProgress = null)
+        {
+            await DownloadAndConvertVideo(info, new VideoOptions(), videoProgress);
+        }
+
+        public async Task DownloadAndConvertVideo(IVideoInfo info, IVideoOptions options, IVideoProgress videoProgress = null)
+        {
+            var videoPath = await _client.DownloadVideo(info, videoProgress?.DownloadProgress);
+            if (options.Split)
             {
-                var chapters = await _client.GetChaptersAsync(id);
-                await _converter.ConvertToMp3s(videoPath, chapters, info.Title.RemoveInvalidChars());
+                var chapters = await _client.GetChaptersAsync(info);
+                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters.Cast<VideoSegment>(), OutputDir, videoProgress?.ConvertProgress);
             }
             else
             {
-                await _converter.ConvertToMp3(videoPath);
+                await _converter.ConvertVideoToMp3(videoPath, OutputDir, videoProgress?.ConvertProgress);
             }
             if (File.Exists(videoPath))
                 File.Delete(videoPath);
         }
 
-        public async Task ConvertPlaylist(string url, bool concatenate = false)
+        public async Task DownloadAndConvertPlaylist(string url, IPlaylistProgress playlistProgress = null)
         {
-            PlaylistId id = PlaylistId.Parse(url);
-            Playlist info = await _client.GetPlaylistInfoAsync(id);
-            var videoPaths = await _client.DownloadPlaylist(id, info);
+            await DownloadAndConvertPlaylist(url, new PlaylistOptions(), playlistProgress);
+        }
 
-            if (concatenate)
+        public async Task DownloadAndConvertPlaylist(string url, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        {
+            IPlaylistInfo info = await _client.GetPlaylistInfoAsync(url);
+            await ConvertPlaylist(info, playlistOptions, playlistProgress);
+        }
+
+        public async Task ConvertPlaylist(IPlaylistInfo info, IPlaylistProgress playlistProgress = null)
+        {
+            await ConvertPlaylist(info, new PlaylistOptions(), playlistProgress);
+        }
+
+        public async Task ConvertPlaylist(IPlaylistInfo info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        {
+            if (playlistOptions.Concatenate)
             {
-                await _converter.ConcatenateMp3s(videoPaths, $"{info.Title.RemoveInvalidChars()}");
+                await DownloadAllThenConvert(info, playlistOptions, playlistProgress);
+                return;
             }
-            else
+            
+            IAsyncEnumerable<IPlaylistVideoInfo> videos = _client.GetPlaylistVideosInfoAsync(info.Id);
+
+            var filters = playlistOptions.Filters;
+            await foreach (PlaylistVideo video in videos)
             {
-                await _converter.ConvertToMp3(videoPaths, $"{info.Title.RemoveInvalidChars()}");
+                if (filters != null && filters.Any(f => f.ShouldFilter(video)))
+                    continue;
+
+                //_logger.Info($"{i+1}/{videos.Count}");
+                IVideoProgress progress = null;
+                playlistProgress?.VideoProgresses.TryGetValue(video, out progress);
+
+                await DownloadAndConvertVideo(video, progress);
             }
-            foreach (var path in videoPaths)
+        }
+
+        async Task DownloadAllThenConvert(IPlaylistInfo info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        {
+            var tempVideoPaths = await _client.DownloadPlaylist(info, playlistOptions.Filters, playlistProgress);
+
+            Dictionary<string, IProgress> progressDict = null;
+            if(playlistProgress != null)
             {
-                if (File.Exists(path))
-                    File.Delete(path);
+                progressDict = new();
+                foreach (var tempVideo in tempVideoPaths)
+                {
+                    progressDict.Add(tempVideo.Path, playlistProgress.VideoProgresses[tempVideo.VideoInfo].ConvertProgress);
+                }
+            }
+            
+            await _converter.ConvertVideosToSingleMp3(tempVideoPaths.Select(vp => vp.Path), OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
+
+            foreach (var tempVideo in tempVideoPaths)
+            {
+                if (File.Exists(tempVideo.Path))
+                    File.Delete(tempVideo.Path);
             }
         }
 
@@ -106,8 +169,8 @@ namespace MyYoutubeNow
 
             services.AddSingleton(typeof(ILogger), LogManager.GetLogger($"logdebugger"));
             services.AddSingleton<YoutubeExplode.YoutubeClient, YoutubeExplode.YoutubeClient>();
-            services.AddSingleton<YoutubeClient, YoutubeClient>();
-            services.AddSingleton<MediaConverter, MediaConverter>();
+            services.AddSingleton<IYoutubeClient, YoutubeExplodeClient>();
+            services.AddSingleton<IMediaConverter, FFmpegMediaConverter>();
 
             return services.BuildServiceProvider();
         }

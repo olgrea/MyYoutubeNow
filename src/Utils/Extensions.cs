@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
@@ -9,6 +10,14 @@ namespace MyYoutubeNow.Utils
 {
     public static class Extensions
     {
+        public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(this IEnumerable<T> enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                yield return await Task.FromResult(item);
+            }
+        }
+
         public static void Apply(this LoggingConfiguration config)
         {
             NLog.LogManager.Configuration = config;

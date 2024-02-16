@@ -2,13 +2,15 @@
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
+using MyYoutubeNow.Options;
+using MyYoutubeNow.Progress;
 using MyYoutubeNow.Utils;
 using NLog;
 using NLog.Layouts;
 
 namespace MyYoutubeNow
 {
-    public class Options
+    public class CommandLineOptions
     {
         [Value(0, Required = true, HelpText = "The url of the video/playlist. ")]
         public string Url { get; set; }
@@ -24,7 +26,7 @@ namespace MyYoutubeNow
     {
         static async Task Main(string[] args)
         {
-            var results = CommandLine.Parser.Default.ParseArguments<Options>(args);
+            var results = CommandLine.Parser.Default.ParseArguments<CommandLineOptions>(args);
             if (results.Errors.Any())
             {
                 foreach (Error error in results.Errors) 
@@ -35,7 +37,7 @@ namespace MyYoutubeNow
             await results.WithParsedAsync(Run);
         }
         
-        public static async Task Run(Options options)
+        public static async Task Run(CommandLineOptions options)
         {
             var myn = new MyYoutubeNowService(new InlineProgress());
 
@@ -45,18 +47,18 @@ namespace MyYoutubeNow
             myn.LoggingConfig.AddRule(LogLevel.Info, LogLevel.Fatal, target);
             myn.LoggingConfig.Apply();
 
-            if (MyYoutubeNowService.IsVideo(options.Url))
+            if (myn.IsVideo(options.Url))
             {
-                await myn.ConvertVideo(options.Url, options.Split);
+                await myn.DownloadAndConvertVideo(options.Url, new VideoOptions() { Split = options.Split });
             }
-            else if(MyYoutubeNowService.IsPlaylist(options.Url))
+            else if(myn.IsPlaylist(options.Url))
             {
-                await myn.ConvertPlaylist(options.Url, options.Concatenate);
+                await myn.DownloadAndConvertPlaylist(options.Url, new PlaylistOptions() { Concatenate = options.Concatenate });
             }
         }
     }
 
-    internal class InlineProgress : IProgressReport
+    internal class InlineProgress : IProgress
     {
         public void Report(double progress)
         {

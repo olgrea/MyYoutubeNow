@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MyYoutubeNowApp.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
+		xmlns:controls="clr-namespace:HyperText.Avalonia.Controls;assembly=HyperText.Avalonia"
+        xmlns:views="clr-namespace:MyYoutubeNowApp.Views"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="MyYoutubeNowApp.Views.MainWindow"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="MyYoutubeNow"
+		x:DataType="vm:MainViewModel">
+
+	<Design.DataContext>
+		<!-- This only sets the DataContext for the previewer in an IDE,
+         to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+		<vm:MainViewModel />
+	</Design.DataContext>
+
+	<Grid ColumnDefinitions="*" RowDefinitions="Auto, *, Auto" HorizontalAlignment="Center">
+		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20" HorizontalAlignment="Center">
+			<TextBox Text="{Binding Url}" Watermark="Enter URL of video or playlist" MinWidth="600"/>
+			<Button Content="Get" Command="{Binding PullUrlInfoCommand}"/>
+		</StackPanel>
+		<!-- TODO : create different styles for single video and playlist-->
+		<ScrollViewer Grid.Row="1" >
+			<ListBox ItemsSource="{Binding VideoList}">
+				<ListBox.ItemTemplate>
+					<DataTemplate>
+						<DockPanel>
+							<CheckBox IsChecked="{Binding Selected}" />
+							<DockPanel VerticalAlignment="Center" Margin="10,0">
+								<ProgressBar Classes="circular" Value="{Binding Progress.TotalProgress}" VerticalAlignment="Center" IsVisible="{Binding !Downloaded}"/>
+								<TextBlock Text="✔️" TextAlignment="Right" IsVisible="{Binding Downloaded}"/>
+							</DockPanel>
+							<asyncImageLoader:AdvancedImage Source="{Binding Thumbnail}" Height="64" Width="64" Margin="10,0"/>
+							<Button Content="{Binding Title}"  Click="GoToUrl"
+									VerticalAlignment="Center" Margin="10,0" Background="Transparent"/>
+							<TextBlock Text="{Binding Duration}" VerticalAlignment="Center" TextAlignment="Right" Margin="10,0"/>
+						</DockPanel>
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+		</ScrollViewer>
+		<StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="20" >
+			<Button Content="Download and Convert" Command="{Binding DownloadCommand}" HorizontalAlignment="Center"/>
+			<StackPanel Orientation="Horizontal">
+				<Button Content="Output" Click="SelectOutputDir" VerticalAlignment="Center" FontSize="10" Padding="2" Margin="0,5,5,5"/>
+				<TextBlock Text="{Binding OutputDir}" FontSize="12" VerticalAlignment="Center"/>
+			</StackPanel>
+		</StackPanel>
+	</Grid>
+</Window>

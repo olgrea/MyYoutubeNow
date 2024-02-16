@@ -1,13 +1,16 @@
 using NUnit.Framework;
-using MyYoutubeNow;
 using System.Threading.Tasks;
 using System;
-using YoutubeExplode.Videos;
-using YoutubeExplode.Playlists;
-using YoutubeExplode.Exceptions;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
+
+using MyYoutubeNow;
 using MyYoutubeNow.Converters;
 using MyYoutubeNow.Utils;
+using MyYoutubeNow.Options;
+using MyYoutubeNow.Progress;
+using MyYoutubeNow.Client;
 
 namespace Tests
 {
@@ -18,8 +21,8 @@ namespace Tests
 
         const string ValidVideoId = "atBi_MfT3LE";
         const string PrivatePlaylistId = "PL1qgThHfu0PYFdfBdyJyJFkILyk3Pkh9_";
-        const string UnlistedPlaylistId = "PL1qgThHfu0Pbsd7VgxBJWTWI0pAD0basw";
-        const string PublicPlaylistId = "PL1qgThHfu0PaX44brExT3vTdwCQAm334s";
+        const string UnlistedPlaylistId = "PL1qgThHfu0PbUjZC-LvdkX-mEAzN8tcY6";
+        const string PublicPlaylistId = "PL1qgThHfu0PaoG2VfTwN8YfnngcJmuK-T";
         const string FFmpegExeName = FFmpegWrapper.FFmpegExeName;
 
         MyYoutubeNowService _myns;
@@ -34,7 +37,7 @@ namespace Tests
         public async Task GetVideoInfoAsync_ValidUrl_RetrievesIt()
         {
             string url = string.Format(VideoUrlFormat, ValidVideoId);
-            IVideo vid = await _myns.GetVideoInfoAsync(url);
+            IVideoInfo vid = await _myns.GetVideoInfoAsync(url);
 
             Assert.That(vid, Is.Not.Null);
             Assert.That(vid.Id.ToString(), Is.EqualTo(ValidVideoId));
@@ -69,7 +72,7 @@ namespace Tests
         public async Task GetPlaylistInfoAsync_ValidUrl_UnlistedPlaylist_RetrievesIt()
         {
             string url = string.Format(PlaylistUrlFormat, UnlistedPlaylistId);
-            IPlaylist pl = await _myns.GetPlaylistInfoAsync(url);
+            IPlaylistInfo pl = await _myns.GetPlaylistInfoAsync(url);
 
             Assert.That(pl, Is.Not.Null);
             Assert.That(pl.Id.ToString(), Is.EqualTo(UnlistedPlaylistId));
@@ -79,7 +82,7 @@ namespace Tests
         public async Task GetPlaylistInfoAsync_ValidUrl_PublicPlaylist_RetrievesIt()
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
-            IPlaylist pl = await _myns.GetPlaylistInfoAsync(url);
+            IPlaylistInfo pl = await _myns.GetPlaylistInfoAsync(url);
 
             Assert.That(pl, Is.Not.Null);
             Assert.That(pl.Id.ToString(), Is.EqualTo(PublicPlaylistId));
@@ -92,7 +95,7 @@ namespace Tests
                 File.Delete(FFmpegExeName);
 
             string url = string.Format(VideoUrlFormat, ValidVideoId);
-            await _myns.ConvertVideo(url);
+            await _myns.DownloadAndConvertVideo(url);
 
             Assert.That(File.Exists(FFmpegExeName));
         }
@@ -101,13 +104,24 @@ namespace Tests
         public async Task ConvertVideo_ValidUrl_DownloadsAndConvertsIt()
         {
             string url = string.Format(VideoUrlFormat, ValidVideoId);
-            IVideo info = await _myns.GetVideoInfoAsync(url);
+            IVideoInfo info = await _myns.GetVideoInfoAsync(url);
 
-            await _myns.ConvertVideo(url);
+            await _myns.DownloadAndConvertVideo(url);
 
-            //TODO : add a way to specify output folder
-            string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
+            string mp3FilePath = Path.Combine(_myns.OutputDir, info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
+        }
+
+        [Test]
+        public async Task ConvertVideo_ProgressIsUpdated()
+        {
+            string url = string.Format(VideoUrlFormat, ValidVideoId);
+
+            VideoProgress progress = new VideoProgress();
+            await _myns.DownloadAndConvertVideo(url, progress);
+
+            Assert.That(progress.Download, Is.EqualTo(1.0));
+            Assert.That(progress.Conversion, Is.EqualTo(1.0));
         }
 
         [Test]
@@ -115,13 +129,41 @@ namespace Tests
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
 
-            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
-            IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
+            string dirPath = (await _myns.GetPlaylistInfoAsync(url)).Title.RemoveInvalidChars();
+            HashSet<string> fileNames = new();
+            await foreach (IPlaylistVideoInfo vid in _myns.GetPlaylistVideosInfoAsync(url))
+                fileNames.Add(vid.Title.RemoveInvalidChars() + ".mp3");
 
-            await _myns.ConvertPlaylist(url);
+            await _myns.DownloadAndConvertPlaylist(url);
 
-            string mp3DirPath = info.Title.RemoveInvalidChars();
-            Assert.That(Directory.Exists(mp3DirPath));
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(dirPath));
+                foreach(var file in Directory.EnumerateFiles(dirPath))
+                    Assert.That(fileNames, Contains.Item(Path.GetFileName(file).RemoveInvalidChars()));
+            });
+        }
+
+        [Test]
+        public async Task ConvertPlaylist_ProgressIsUpdated()
+        {
+            string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
+
+            string dirPath = (await _myns.GetPlaylistInfoAsync(url)).Title.RemoveInvalidChars();
+            var playlistProgress = new PlaylistProgress();
+            await foreach (IPlaylistVideoInfo vid in _myns.GetPlaylistVideosInfoAsync(url))
+                playlistProgress.VideoProgresses.Add(vid, new VideoProgress());
+
+            await _myns.DownloadAndConvertPlaylist(url, playlistProgress);
+
+            Assert.Multiple(() =>
+            {
+                foreach (VideoProgress progress in playlistProgress.VideoProgresses.Values.Cast<VideoProgress>())
+                {
+                    Assert.That(progress.Download, Is.EqualTo(1.0));
+                    Assert.That(progress.Conversion, Is.EqualTo(1.0));
+                }
+            });
         }
 
         [Test]
@@ -129,13 +171,37 @@ namespace Tests
         {
             string url = string.Format(PlaylistUrlFormat, PublicPlaylistId);
 
-            // TODO : use GetPlaylistVideosInfoAsync() after merging in avalonia app branch
-            IPlaylist info = await _myns.GetPlaylistInfoAsync(url);
+            IPlaylistInfo info = await _myns.GetPlaylistInfoAsync(url);
 
-            await _myns.ConvertPlaylist(url, concatenate: true);
+            var opts = new PlaylistOptions() { Concatenate = true } ;
+            await _myns.DownloadAndConvertPlaylist(url, opts);
 
             string mp3FilePath = Path.Combine("output", info.Title.RemoveInvalidChars() + ".mp3");
             Assert.That(File.Exists(mp3FilePath));
+        }
+
+        class VideoProgress : IVideoProgress
+        {
+            class ValueProgress : IProgress
+            {
+                public double Value { get; set; }
+                public void Report(double value) => Value = value;
+            }
+
+            ValueProgress _downloadProgress;
+            ValueProgress _convertProgress;
+
+            public VideoProgress()
+            {
+                _downloadProgress = new ValueProgress();
+                _convertProgress = new ValueProgress();
+            }
+
+            public double Download => _downloadProgress.Value;
+            public double Conversion => _convertProgress.Value;
+
+            public IProgress DownloadProgress => _downloadProgress;
+            public IProgress ConvertProgress => _convertProgress;
         }
     }
 }
