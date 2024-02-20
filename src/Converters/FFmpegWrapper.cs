@@ -113,11 +113,14 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public async Task<bool> ConvertToMp3(string videoPath, string fileName, IProgress progressReport = null)
+        public async Task<string> ConvertToMp3(string videoPath, string fileName, IProgress progressReport = null)
         {
             await CheckFFmpegExist();
 
             fileName = Path.Combine(OutputDir, fileName);
+            var outputDir = Path.GetDirectoryName(fileName);
+            if(!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
 
             progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
@@ -147,7 +150,7 @@ namespace MyYoutubeNow.Converters
                     .ProcessAsynchronously();
 
                 _logger.Info("Completed");
-                return task;
+                return fileName;
             }
             finally
             {
@@ -157,11 +160,14 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public async Task<bool> VideoSegmentToMp3(string videoMixPath, ulong start, ulong end, string title, string fileName, IProgress progressReport = null)
+        public async Task<string> VideoSegmentToMp3(string videoMixPath, ulong start, ulong end, string title, string fileName, IProgress progressReport = null)
         {
             await CheckFFmpegExist();
 
             fileName = Path.Combine(OutputDir, fileName);
+            var outputDir = Path.GetDirectoryName(fileName);
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
 
             progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
@@ -190,7 +196,7 @@ namespace MyYoutubeNow.Converters
                     .ProcessAsynchronously();
                 
                 _logger.Info("Completed");
-                return task;
+                return fileName;
             }
             finally
             {
@@ -201,11 +207,14 @@ namespace MyYoutubeNow.Converters
 
         }
 
-        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string fileName, IProgress progressReport = null)
+        public async Task<string> VideosToSingleMp3(IEnumerable<string> videoPaths, string fileName, IProgress progressReport = null)
         {
             await CheckFFmpegExist();
 
             fileName = Path.Combine(OutputDir, fileName);
+            var outputDir = Path.GetDirectoryName(fileName);
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
 
             _logger.Info($"Concatenating {videoPaths.Count()} files...");
 
@@ -239,7 +248,7 @@ namespace MyYoutubeNow.Converters
                     .ProcessAsynchronously();
 
                 _logger.Info("Completed");
-                return task;
+                return fileName;
             }
             finally 
             {

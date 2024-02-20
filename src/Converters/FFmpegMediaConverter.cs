@@ -35,10 +35,11 @@ namespace MyYoutubeNow.Converters
             set => _ffmpeg.DefaultProgressReport = value; 
         }
 
-        public async Task ConvertVideoToMultipleMp3s(string videoPath, IEnumerable<IVideoSegment> segments, IProgress progressReport = null)
+        public async Task<string> ConvertVideoToMultipleMp3s(string videoPath, IEnumerable<IVideoSegment> segments, IProgress progressReport = null)
         {
             var videoName = Path.GetFileNameWithoutExtension(videoPath).RemoveInvalidChars();
 
+            string outputDir = "";
             var chapterList = segments.ToList();
             for (int i = 0; i < chapterList.Count; i++)
             {
@@ -49,17 +50,21 @@ namespace MyYoutubeNow.Converters
                 var end = i + 1 != chapterList.Count ? chapterList[i + 1].SegmentStartTimeMs : 0;
                 var title = chapter.Title;
 
-                await _ffmpeg.VideoSegmentToMp3(videoPath, start, end, title, fileName, progressReport);
+                var path = await _ffmpeg.VideoSegmentToMp3(videoPath, start, end, title, fileName, progressReport);
+                if(string.IsNullOrEmpty(outputDir))
+                    outputDir = Path.GetDirectoryName(path);
             }
+
+            return outputDir;
         }
 
-        public async Task<bool> ConvertVideoToMp3(string videoPath, string fileName = null, IProgress progressReport = null)
+        public async Task<string> ConvertVideoToMp3(string videoPath, string fileName = null, IProgress progressReport = null)
         {
             fileName ??= $"{Path.GetFileNameWithoutExtension(videoPath)}.mp3";
             return await _ffmpeg.ConvertToMp3(videoPath, fileName, progressReport);
         }
 
-        public async Task<bool> ConvertVideosToSingleMp3(IEnumerable<string> videoPaths, string fileName, IDictionary<string, IProgress> tempVideoProgresses = null)
+        public async Task<string> ConvertVideosToSingleMp3(IEnumerable<string> videoPaths, string fileName, IDictionary<string, IProgress> tempVideoProgresses = null)
         {
             var filename = $"{fileName}.mp3";
             return await _ffmpeg.VideosToSingleMp3(videoPaths, filename);

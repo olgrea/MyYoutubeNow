@@ -57,6 +57,29 @@ namespace MyYoutubeNow
             return _client.GetPlaylistVideosInfoAsync(url);
         }
 
+        public async Task<string> DownloadVideo(string url, IProgress progress = null)
+        {
+            IVideoInfo info = await _client.GetVideoInfoAsync(url);
+            return await DownloadVideo(info, progress);
+        }
+
+        public async Task<string> DownloadVideo(string url, IVideoOptions options, IProgress progress = null)
+        {
+            IVideoInfo info = await _client.GetVideoInfoAsync(url);
+            return await DownloadVideo(info, options, progress);
+        }
+
+        public async Task<string> DownloadVideo(IVideoInfo info, IProgress progress = null)
+        {
+            return await DownloadVideo(info, new VideoOptions(), progress);
+        }
+
+        public async Task<string> DownloadVideo(IVideoInfo info, IVideoOptions options, IProgress progress = null)
+        {
+            var videoPath = await _client.DownloadVideo(info, progress);
+            return videoPath;
+        }
+
         public async Task DownloadAndConvertVideo(string url, IVideoProgress videoProgress = null)
         {
             await DownloadAndConvertVideo(url, new VideoOptions(), videoProgress);
@@ -75,7 +98,7 @@ namespace MyYoutubeNow
 
         public async Task DownloadAndConvertVideo(IVideoInfo info, IVideoOptions options, IVideoProgress videoProgress = null)
         {
-            var videoPath = await _client.DownloadVideo(info, videoProgress?.DownloadProgress);
+            var videoPath = await DownloadVideo(info, videoProgress?.DownloadProgress);
             if (options.Split)
             {
                 var chapters = await _client.GetChaptersAsync(info);
@@ -97,15 +120,15 @@ namespace MyYoutubeNow
         public async Task DownloadAndConvertPlaylist(string url, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
         {
             IPlaylistInfo info = await _client.GetPlaylistInfoAsync(url);
-            await ConvertPlaylist(info, playlistOptions, playlistProgress);
+            await DownloadAndConvertPlaylist(info, playlistOptions, playlistProgress);
         }
 
-        public async Task ConvertPlaylist(IPlaylistInfo info, IPlaylistProgress playlistProgress = null)
+        public async Task DownloadAndConvertPlaylist(IPlaylistInfo info, IPlaylistProgress playlistProgress = null)
         {
-            await ConvertPlaylist(info, new PlaylistOptions(), playlistProgress);
+            await DownloadAndConvertPlaylist(info, new PlaylistOptions(), playlistProgress);
         }
 
-        public async Task ConvertPlaylist(IPlaylistInfo info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
+        public async Task DownloadAndConvertPlaylist(IPlaylistInfo info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)
         {
             if (playlistOptions.Concatenate)
             {
@@ -116,6 +139,7 @@ namespace MyYoutubeNow
             IAsyncEnumerable<IPlaylistVideoInfo> videos = _client.GetPlaylistVideosInfoAsync(info.Id);
 
             var filters = playlistOptions.Filters;
+            List<Task> tasks = new();
             await foreach (PlaylistVideo video in videos)
             {
                 if (filters != null && filters.Any(f => f.ShouldFilter(video)))
@@ -125,8 +149,18 @@ namespace MyYoutubeNow
                 IVideoProgress progress = null;
                 playlistProgress?.VideoProgresses.TryGetValue(video, out progress);
 
-                await DownloadAndConvertVideo(video, progress);
+                tasks.Add(Task.Run(async () =>
+                {
+                    var videoPath = await DownloadVideo(video, progress?.DownloadProgress);
+                    var fileName = Path.Combine(info.Title.RemoveInvalidChars(), video.Title.RemoveInvalidChars() + ".mp3");
+                    await _converter.ConvertVideoToMp3(videoPath, fileName, progress?.ConvertProgress);
+
+                    if (File.Exists(videoPath))
+                        File.Delete(videoPath);
+                }));
             }
+
+            await Task.WhenAll(tasks);
         }
 
         async Task DownloadAllThenConvert(IPlaylistInfo info, IPlaylistOptions playlistOptions, IPlaylistProgress playlistProgress = null)

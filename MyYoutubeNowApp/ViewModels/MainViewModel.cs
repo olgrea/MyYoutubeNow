@@ -105,7 +105,7 @@ public partial class MainViewModel : ObservableValidator
 
             IPlaylistProgress plProg = new PlaylistProgress(VideoList.ToDictionary(v => (IPlaylistVideoInfo)v.VideoInfo, v => (IVideoProgress)v.Progress));
 
-            await _myn.ConvertPlaylist(pInfo.Playlist, options, plProg);
+            await _myn.DownloadAndConvertPlaylist(pInfo.Playlist, options, plProg);
         }
         else
         {

@@ -14,8 +14,8 @@ namespace MyYoutubeNow.Converters
     {
         public string OutputDir { get; set; }
         public IProgress DefaultProgressReport { get; set; }
-        public Task<bool> ConvertVideoToMp3(string videoPath, string fileName = null, IProgress progressReport = null);
-        public Task ConvertVideoToMultipleMp3s(string videoPath, IEnumerable<IVideoSegment> segments, IProgress progressReport = null);
-        public Task<bool> ConvertVideosToSingleMp3(IEnumerable<string> pathsToMerge, string fileName, IDictionary<string, IProgress> tempVideoProgresses = null);
+        public Task<string> ConvertVideoToMp3(string videoPath, string fileName = null, IProgress progressReport = null);
+        public Task<string> ConvertVideoToMultipleMp3s(string videoPath, IEnumerable<IVideoSegment> segments, IProgress progressReport = null);
+        public Task<string> ConvertVideosToSingleMp3(IEnumerable<string> pathsToMerge, string fileName, IDictionary<string, IProgress> tempVideoProgresses = null);
     }
 }
