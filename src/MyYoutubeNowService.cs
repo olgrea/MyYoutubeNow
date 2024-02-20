@@ -35,7 +35,7 @@ namespace MyYoutubeNow
             _client.DefaultProgressReport = _converter.DefaultProgressReport = progressReport;
         }
 
-        public string OutputDir { get; set; } = "output";
+        public string OutputDir { get => _converter.OutputDir; set => _converter.OutputDir = value; }
 
         public LoggingConfiguration LoggingConfig => _loggingConfig;
 
@@ -79,11 +79,11 @@ namespace MyYoutubeNow
             if (options.Split)
             {
                 var chapters = await _client.GetChaptersAsync(info);
-                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters.Cast<VideoSegment>(), OutputDir, videoProgress?.ConvertProgress);
+                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters.Cast<VideoSegment>(), videoProgress?.ConvertProgress);
             }
             else
             {
-                await _converter.ConvertVideoToMp3(videoPath, OutputDir, videoProgress?.ConvertProgress);
+                await _converter.ConvertVideoToMp3(videoPath, null, videoProgress?.ConvertProgress);
             }
             if (File.Exists(videoPath))
                 File.Delete(videoPath);
@@ -143,7 +143,7 @@ namespace MyYoutubeNow
                 }
             }
             
-            await _converter.ConvertVideosToSingleMp3(tempVideoPaths.Select(vp => vp.Path), OutputDir, $"{info.Title.RemoveInvalidChars()}", progressDict);
+            await _converter.ConvertVideosToSingleMp3(tempVideoPaths.Select(vp => vp.Path), $"{info.Title.RemoveInvalidChars()}", progressDict);
 
             foreach (var tempVideo in tempVideoPaths)
             {

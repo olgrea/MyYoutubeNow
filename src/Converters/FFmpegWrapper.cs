@@ -9,7 +9,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using MyYoutubeNow.Utils;
 using FFMpegCore;
-using Instances;
 using NLog;
 using MyYoutubeNow.Progress;
 
@@ -21,12 +20,18 @@ namespace MyYoutubeNow.Converters
 {
     internal class FFmpegWrapper
     {
-        private const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
-        internal const string FFmpegExeName = "ffmpeg.exe";
-        private string _binaryFolder;
-        ILogger _logger;
+        internal class Options
+        {
+            public string BinaryFolder { get; set; }
+            public string OutputDir { get; set; }
+            public bool AutoDownloadBinaries { get; set; }
+        }
 
-        private string _exePath => Path.Combine(_binaryFolder, FFmpegExeName);
+        const string GithubReleaseUrl = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
+        internal const string FFmpegExeName = "ffmpeg.exe";
+        string ExePath => Path.Combine(_options.BinaryFolder, FFmpegExeName);
+        Options _options;
+        ILogger _logger;
 
         private string _tempPath;
         private string TempPath
@@ -43,12 +48,36 @@ namespace MyYoutubeNow.Converters
             }
         }
 
-        public FFmpegWrapper(string binaryFolder, ILogger logger)
+        internal string OutputDir
         {
-            _logger = logger;
-            _binaryFolder = binaryFolder;
-            GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _binaryFolder, TemporaryFilesFolder = TempPath });
+            get => _options.OutputDir;
+            set
+            {
+                CheckPathValidity(value, nameof(OutputDir));
+                _options.OutputDir = value;
+            }
         }
+
+        public FFmpegWrapper(ILogger logger)
+            : this(new Options(), logger)
+        {
+
+        }
+
+        public FFmpegWrapper(Options options, ILogger logger)
+        {
+            _options = options;
+
+            CheckPathValidity(_options.BinaryFolder, nameof(_options.BinaryFolder));
+            CheckPathValidity(_options.OutputDir, nameof(_options.OutputDir));
+
+            if (!_options.AutoDownloadBinaries && !File.Exists(ExePath))
+                throw new FileNotFoundException($"FFmpeg not found at \"{_options.BinaryFolder}\". Set {nameof(_options.AutoDownloadBinaries)} to automatically download them.");
+
+            _logger = logger;
+            GlobalFFOptions.Configure(new FFOptions { BinaryFolder = _options.BinaryFolder, TemporaryFilesFolder = TempPath });
+        }
+
 
         ~FFmpegWrapper()
         {
@@ -60,25 +89,47 @@ namespace MyYoutubeNow.Converters
 
         public IProgress DefaultProgressReport { get; set; }
 
-        public async Task<bool> ConvertToMp3(string videoPath, string outputPath, IProgress progressReport = null)
+        private void CheckPathValidity(string path, string name)
         {
-            if(!FFmpegFound)
+            try
+            {
+                Path.GetFullPath(path);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Invalid {name} path : {path}.", ex);
+            }
+        }
+
+        private async Task CheckFFmpegExist()
+        {
+            if(!File.Exists(ExePath))
             {
                 _logger.Info("FFmpeg not found.");
-                await Download();
+                if (_options.AutoDownloadBinaries)
+                    await DownloadBinaries();
+                else
+                    throw new FileNotFoundException($"FFmpeg not found at \"{_options.BinaryFolder}\". Set {nameof(_options.AutoDownloadBinaries)} to automatically download them.");
             }
+        }
+
+        public async Task<bool> ConvertToMp3(string videoPath, string fileName, IProgress progressReport = null)
+        {
+            await CheckFFmpegExist();
+
+            fileName = Path.Combine(OutputDir, fileName);
 
             progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoPath);
             var audioStream = mediaInfo.PrimaryAudioStream;
 
-            _logger.Info($"Converting {Path.GetFileNameWithoutExtension(outputPath)} to mp3...");
+            _logger.Info($"Converting {Path.GetFileNameWithoutExtension(fileName)} to mp3...");
 
             try
             {
                 var task =  await FFMpegArguments
                     .FromFileInput(videoPath)
-                    .OutputToFile(outputPath, true, op =>
+                    .OutputToFile(fileName, true, op =>
                         op
                         .SelectStream(audioStream.Index)
                         .WithAudioCodec("mp3")
@@ -100,19 +151,17 @@ namespace MyYoutubeNow.Converters
             }
             finally
             {
-                var outputFileInfo = new FileInfo(outputPath);
+                var outputFileInfo = new FileInfo(fileName);
                 if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
                     Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
             }
         }
 
-        public async Task<bool> VideoPartToMp3(string videoMixPath, string outputPath, ulong start, ulong end, string title, IProgress progressReport = null)
+        public async Task<bool> VideoSegmentToMp3(string videoMixPath, ulong start, ulong end, string title, string fileName, IProgress progressReport = null)
         {
-            if (!FFmpegFound)
-            {
-                _logger.Info("FFmpeg not found.");
-                await Download();
-            }
+            await CheckFFmpegExist();
+
+            fileName = Path.Combine(OutputDir, fileName);
 
             progressReport ??= DefaultProgressReport;
             var mediaInfo = await FFProbe.AnalyseAsync(videoMixPath);
@@ -124,7 +173,7 @@ namespace MyYoutubeNow.Converters
             {
                 var task = await FFMpegArguments
                     .FromFileInput(videoMixPath)
-                    .OutputToFile(outputPath, true, op =>
+                    .OutputToFile(fileName, true, op =>
                         op
                         .SelectStream(audioStream.Index)
                         .WithAudioCodec("mp3")
@@ -145,20 +194,18 @@ namespace MyYoutubeNow.Converters
             }
             finally
             {
-                var outputFileInfo = new FileInfo(outputPath);
+                var outputFileInfo = new FileInfo(fileName);
                 if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
                     Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
             }
 
         }
 
-        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string outputPath, IProgress progressReport = null)
+        public async Task<bool> VideosToSingleMp3(IEnumerable<string> videoPaths, string fileName, IProgress progressReport = null)
         {
-            if (!FFmpegFound)
-            {
-                _logger.Info("FFmpeg not found.");
-                await Download();
-            }
+            await CheckFFmpegExist();
+
+            fileName = Path.Combine(OutputDir, fileName);
 
             _logger.Info($"Concatenating {videoPaths.Count()} files...");
 
@@ -179,10 +226,10 @@ namespace MyYoutubeNow.Converters
                 }
 
                 var task = await ffmpegArgs
-                    .OutputToFile(outputPath, true, op =>
+                    .OutputToFile(fileName, true, op =>
                         op
                         .WithAudioCodec("mp3")
-                        .WithCustomArgument(MakeConcatParam(paths.Count, outputPath))
+                        .WithCustomArgument(MakeConcatParam(paths.Count, fileName))
                         .OverwriteExisting()
                     )
                     .NotifyOnProgress(progress =>
@@ -196,13 +243,11 @@ namespace MyYoutubeNow.Converters
             }
             finally 
             {
-                var outputFileInfo = new FileInfo(outputPath);
+                var outputFileInfo = new FileInfo(fileName);
                 if (!outputFileInfo.Exists || outputFileInfo.Length == 0)
                     Console.Error.WriteLine($"problem during conversion of {outputFileInfo.Name}.");
             }
         }
-
-        private bool FFmpegFound => File.Exists(_exePath);
 
         private static string MakeQualityParam()
         {
@@ -212,16 +257,16 @@ namespace MyYoutubeNow.Converters
         private static string MakeSplitParam(ulong start, ulong end)
         {
             var sb = new StringBuilder();
-            sb.Append($"-ss {ToFFmpeg(TimeSpan.FromMilliseconds(start))} ");
+            sb.Append($"-ss {ToFFmpegFormat(TimeSpan.FromMilliseconds(start))} ");
             if (end > 0)
             {
-                sb.Append($"-to {ToFFmpeg(TimeSpan.FromMilliseconds(end))} ");
+                sb.Append($"-to {ToFFmpegFormat(TimeSpan.FromMilliseconds(end))} ");
             }
 
             return sb.ToString();
         }
 
-        static string ToFFmpeg(TimeSpan ts)
+        static string ToFFmpegFormat(TimeSpan ts)
         {
             int milliseconds = ts.Milliseconds;
             int seconds = ts.Seconds;
@@ -254,7 +299,7 @@ namespace MyYoutubeNow.Converters
             return sb.ToString();
         }
 
-        public async Task Download()
+        async Task DownloadBinaries()
         {
             _logger.Info("Downloading FFmpeg...");
             using HttpClient httpClient = new HttpClient();
@@ -273,9 +318,9 @@ namespace MyYoutubeNow.Converters
             var releaseUrl = elem.GetProperty("browser_download_url").GetString();
             var zipFileName = Path.GetFileName(releaseUrl);
 
-            if (Directory.Exists(_binaryFolder))
-                Directory.CreateDirectory(_binaryFolder);
-            var zipPath = Path.Combine(_binaryFolder, zipFileName);
+            if (!Directory.Exists(_options.BinaryFolder))
+                Directory.CreateDirectory(_options.BinaryFolder);
+            var zipPath = Path.Combine(_options.BinaryFolder, zipFileName);
 
             await httpClient.DownloadAsync(releaseUrl, zipPath, elem.GetProperty("size").GetInt64(), DefaultProgressReport);
             _logger.Info("Completed");
@@ -287,15 +332,15 @@ namespace MyYoutubeNow.Converters
             await using (FileStream zipStream = File.OpenRead(zipPath))
             {
                 var zip = new ZipArchive(zipStream, ZipArchiveMode.Read);
-                zip.ExtractToDirectory(_binaryFolder);
+                zip.ExtractToDirectory(_options.BinaryFolder);
             }
 
             foreach (string file in Directory.EnumerateFiles(extractedDir, "*.exe", SearchOption.AllDirectories))
             {
-                File.Copy(file, Path.Combine(_binaryFolder, Path.GetFileName(file)), overwrite: true);
+                File.Copy(file, Path.Combine(_options.BinaryFolder, Path.GetFileName(file)), overwrite: true);
             }
 
-            if (File.Exists(_exePath))
+            if (File.Exists(ExePath))
             {
                 File.Delete(zipPath);
                 Directory.Delete(extractedDir, true);
