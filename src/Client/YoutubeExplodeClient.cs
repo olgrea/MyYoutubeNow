@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -34,6 +35,8 @@ namespace MyYoutubeNow.Client
             Title = chapter.Title;
             SegmentStartTimeMs = chapter.SegmentStartTimeMs;
         }
+
+        public static implicit operator VideoSegment(Chapter c) => new VideoSegment(c);
     }
 
     abstract class VideoBase

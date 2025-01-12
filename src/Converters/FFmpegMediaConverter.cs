@@ -40,7 +40,7 @@ namespace MyYoutubeNow.Converters
             var videoName = Path.GetFileNameWithoutExtension(videoPath).RemoveInvalidChars();
 
             string outputDir = "";
-            var chapterList = segments.ToList();
+            List<IVideoSegment> chapterList = segments.ToList();
             for (int i = 0; i < chapterList.Count; i++)
             {
                 var chapter = chapterList[i];

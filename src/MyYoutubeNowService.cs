@@ -101,8 +101,8 @@ namespace MyYoutubeNow
             var videoPath = await DownloadVideo(info, videoProgress?.DownloadProgress);
             if (options.Split)
             {
-                var chapters = await _client.GetChaptersAsync(info);
-                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters.Cast<VideoSegment>(), videoProgress?.ConvertProgress);
+                IEnumerable<Chapter> chapters = await _client.GetChaptersAsync(info);
+                await _converter.ConvertVideoToMultipleMp3s(videoPath, chapters.Select(c => new VideoSegment(c)), videoProgress?.ConvertProgress);
             }
             else
             {
